@@ -1,0 +1,10 @@
+from enum import Enum
+
+class SentimentCategory(str, Enum):
+    MUY_POSITIVO = 'MUY_POSITIVO'
+    POSITIVO = 'POSITIVO'
+    NEUTRAL = 'NEUTRAL'
+    NEGATIVO = 'NEGATIVO'
+    MUY_NEGATIVO = 'MUY_NEGATIVO'
+    DESCONOCIDO = 'DESCONOCIDO'
+    UNKNOWN = 'UNKNOWN'

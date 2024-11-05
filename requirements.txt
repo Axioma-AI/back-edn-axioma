@@ -1,0 +1,15 @@
+chroma-hnswlib==0.7.3
+chromadb==0.5.3
+coloredlogs==15.0.1
+fastapi==0.115.0
+fastapi-cache2==0.2.2
+fastapi-cli==0.0.5
+geopandas==1.0.1
+opentelemetry-instrumentation-fastapi==0.46b0
+pandas==2.2.2
+pydantic==2.8.2
+pydantic-core==2.20.1
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+SQLAlchemy==2.0.31
+uvicorn==0.30.1
