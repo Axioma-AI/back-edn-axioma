@@ -2,8 +2,8 @@ import logging
 from fastapi import APIRouter, Query, HTTPException, status
 from typing import List
 from src.services.article_service import ArticleService
-from src.schema.response_models import ArticleResponseModel
-from src.schema.response_articles_examples import articles_responses
+from src.schema.responses.response_articles_models import ArticleResponseModel
+from src.schema.examples.response_articles_examples import articles_responses
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__, level=logging.INFO)

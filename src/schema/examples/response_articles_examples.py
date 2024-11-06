@@ -1,4 +1,4 @@
-from src.schema.response_models import ArticleResponseModel, ErrorResponseModel
+from src.schema.responses.response_articles_models import ArticleResponseModel, ErrorResponseModel
 
 # Ejemplo para respuesta 200 - Respuesta exitosa
 successful_response_example = {

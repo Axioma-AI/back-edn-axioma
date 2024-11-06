@@ -1,6 +1,7 @@
 import logging
 from fastapi import FastAPI
 from src.config.config import get_settings
+from src.config.cors_config import add_cors
 from src.routes.api.v1 import router as v1_router
 from src.utils.logger import setup_logger
 
@@ -13,6 +14,8 @@ app = FastAPI(
     version=_SETTINGS.k_revision,
     level=_SETTINGS.log_level,
 )
+
+add_cors(app)
 
 # Incluir las rutas
 app.include_router(v1_router, prefix="/api/v1", tags=["API v1"])

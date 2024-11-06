@@ -25,7 +25,7 @@ class TagsModel(Base):
     type = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
     news_associations = relationship('NewsTagAssociation', back_populates='tag', overlaps="news,tags")
-    news = relationship('NewsModel', secondary='news_tag', back_populates='tags', overlaps="tag_associations")
+    news = relationship('NewsModel', secondary='news_tag', back_populates='tags', overlaps="tag_associations", viewonly=True)
 
 class NewsModel(Base):
     __tablename__ = 'news'
@@ -43,7 +43,7 @@ class NewsModel(Base):
     sentiment_category = Column(Enum(SentimentCategory), nullable=False)
     sentiment_score = Column(Numeric(5, 5), nullable=False)
     tag_associations = relationship('NewsTagAssociation', back_populates='news', overlaps="tags")
-    tags = relationship('TagsModel', secondary='news_tag', back_populates='news', overlaps="tag_associations")
+    tags = relationship('TagsModel', secondary='news_tag', back_populates='news', overlaps="tag_associations", viewonly=True)
 
     @staticmethod
     def from_bank_new(bank_new: BankNew) -> 'NewsModel':
