@@ -1,0 +1,34 @@
+services:
+  # Servicio del backend
+  backend:
+    build:
+      context: . # Ruta al directorio donde se encuentra el Dockerfile
+      dockerfile: Dockerfile.backend # Nombre del Dockerfile
+    container_name: fastapi_app
+    ports:
+      - "500901:50001" # Mapea el puerto 8000 del contenedor al puerto 8000 local
+    environment:
+      SERVICE_NAME: ${SERVICE_NAME}
+      K_REVISION: ${K_REVISION}
+      LOG_LEVEL: ${LOG_LEVEL}
+      DB_HOST: ${DB_HOST}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      VECTOR_DATABASE_HOST: ${VECTOR_DATABASE_HOST}
+      VECTOR_DATABASE_PORT: ${VECTOR_DATABASE_PORT}
+    # networks:
+    #   sorteador:
+    #     ipv4_address: ${HOST_BACKEND} # Utiliza la variable de entorno para definir la IP del contenedor app
+
+# Definición de redes personalizadas
+networks:
+  sorteador:
+    # driver: ${NETWORK_DRIVER}  # Utiliza la variable de entorno NETWORK_DRIVER
+    # driver_opts:
+    #   parent: ${PARENT}  # Utiliza la variable de entorno PARENT
+    ipam:
+      config:
+        - subnet: ${SUBNET}  # Utiliza la variable de entorno SUBNET
+          gateway: ${GATEWAY}  # Utiliza la variable de entorno GATEWAY
