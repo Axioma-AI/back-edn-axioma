@@ -1,0 +1,21 @@
+# Ignorar archivos de entorno y configuración local
+.env
+.env.*
+
+# Ignorar cachés de Python
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# Ignorar archivos de logs
+logs/
+*.log
+
+# Ignorar archivos de configuración de git y del sistema
+.git/
+.gitignore
+.DS_Store
+
+# Ignorar archivos de documentación
+*.md
+tree.txt
