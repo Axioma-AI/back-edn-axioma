@@ -9,7 +9,8 @@ allowed_origins = [
     'http://192.168.232.230',
     'http://localhost/',
     'http://192.168.232.230/',
-    'http://localhost:5173'
+    'http://localhost:5173',
+    '*'
 ]
 
 def add_cors(app):

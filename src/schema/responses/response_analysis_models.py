@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 
 class NewsHistoryModel(BaseModel):
     date: str
@@ -15,42 +15,42 @@ class GeneralPerceptionModel(BaseModel):
     negative_sentiment_score: float
 
 class AnalysisResponseModel(BaseModel):
-    source: dict  # {"id": int, "name": str}
-    news_history: List[NewsHistoryModel]
-    news_perception: List[NewsPerceptionModel]
-    news_count: int
-    sources_count: int
-    historic_interval: int
-    historic_interval_unit: str
-    general_perception: GeneralPerceptionModel
+    source_query: str  # Término de búsqueda utilizado
+    news_history: List[NewsHistoryModel]  # Historial de noticias por fecha sin segmentación por fuente
+    news_perception: List[NewsPerceptionModel]  # Percepción de noticias general
+    news_count: int  # Número total de noticias
+    sources_count: int  # Número de fuentes únicas
+    historic_interval: int  # Intervalo histórico
+    historic_interval_unit: str  # Unidad del intervalo histórico (days, weeks, months, years)
+    general_perception: GeneralPerceptionModel  # Percepción general
 
     class Config:
         schema_extra = {
             "example": {
-                "source": {"id": 1, "name": "CNN"},
+                "source_query": "ganaderia",
                 "news_history": [
-                    {"date": "2021-01-01", "news_count": 10},
-                    {"date": "2021-01-02", "news_count": 10}
+                    {"date": "2024-02-15", "news_count": 15},
+                    {"date": "2024-04-02", "news_count": 20}
                 ],
                 "news_perception": [
                     {
-                        "date": "2021-01-01",
+                        "date": "2024-02-15",
                         "positive_sentiment_score": 0.5,
-                        "negative_sentiment_score": 0.5
+                        "negative_sentiment_score": 0.3
                     },
                     {
-                        "date": "2021-01-02",
-                        "positive_sentiment_score": 0.2,
-                        "negative_sentiment_score": 0.8
+                        "date": "2024-04-02",
+                        "positive_sentiment_score": 0.7,
+                        "negative_sentiment_score": 0.2
                     }
                 ],
-                "news_count": 20,
-                "sources_count": 5,
-                "historic_interval": 3,
+                "news_count": 35,
+                "sources_count": 3,
+                "historic_interval": 9,
                 "historic_interval_unit": "months",
                 "general_perception": {
-                    "positive_sentiment_score": 0.4,
-                    "negative_sentiment_score": 0.6
+                    "positive_sentiment_score": 0.6,
+                    "negative_sentiment_score": 0.4
                 }
             }
         }
