@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from src.config.db_config import get_db
 from src.utils.logger import setup_logger
 
-# Configurar el logger
+# Configure the logger
 logger = setup_logger(__name__, level=logging.DEBUG)
 
 class ArticleService:
@@ -13,10 +13,10 @@ class ArticleService:
         self.collection = get_chroma_db_client()
         logger.debug("Chroma DB client initialized.")
 
-    async def get_articles(self, limit: int, sort: str):
+    async def get_articles(self, limit: int, sort: str = "publish_datetime"):
         db = next(get_db())
         try:
-            logger.debug(f"Fetching articles with limit={limit} and sort={sort}.")
+            logger.debug(f"Fetching articles with limit={limit} sorted by {sort} in descending order.")
             articles = (
                 db.query(NewsModel)
                 .order_by(getattr(NewsModel, sort).desc())
@@ -32,14 +32,19 @@ class ArticleService:
             db.close()
             logger.debug("Database session closed after fetching articles.")
 
-    async def search_by_text(self, query: str, limit: int, sort: str):
+    async def search_by_text(self, query: str, limit: int, sort: str = "publish_datetime"):
         query_results = self.collection.query(query_texts=[query], n_results=limit)
         article_urls = query_results["ids"][0]
         distances = query_results["distances"][0]
 
         db = next(get_db())
         try:
-            articles = db.query(NewsModel).filter(NewsModel.source_link.in_(article_urls)).order_by(getattr(NewsModel, sort).desc()).all()
+            articles = (
+                db.query(NewsModel)
+                .filter(NewsModel.source_link.in_(article_urls))
+                .order_by(getattr(NewsModel, sort).desc())
+                .all()
+            )
             article_dict = {article.source_link: article for article in articles}
         finally:
             db.close()

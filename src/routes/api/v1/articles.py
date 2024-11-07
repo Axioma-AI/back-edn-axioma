@@ -12,27 +12,32 @@ router = APIRouter()
 article_service = ArticleService()
 
 @router.get("/articles", 
-            description="Obtener una lista de artículos que coincidan con la búsqueda de una palabra clave en el contenido de los artículos",
+            description="Retrieve a list of articles that match a keyword search within the article content",
             response_model=List[ArticleResponseModel],
             responses=articles_responses)
 async def get_articles(
-    query: str = Query(..., description="Palabra clave para buscar en los artículos"),
-    limit: int = Query(50, description="Número máximo de artículos a devolver"),
-    sort: str = Query("publish_datetime", description="Campo para ordenar los resultados")
+    query: str = Query("", description="Keyword to search within articles (leave empty to retrieve the most recent articles)"),
+    limit: int = Query(50, description="Maximum number of articles to return"),
+    sort: str = Query("publish_datetime", description="Field to sort results by (default is by date)")
 ):
     try:
-        logger.debug(f"Obteniendo artículos con query='{query}', limit={limit}, sort='{sort}'")
-        articles = await article_service.search_by_text(query, limit, sort)
+        # Check if `query` is empty
+        if not query:
+            logger.debug(f"Empty query, fetching the most recent articles with limit={limit} sorted by {sort}.")
+            articles = await article_service.get_articles(limit, sort)
+        else:
+            logger.debug(f"Fetching articles with query='{query}', limit={limit}, sort='{sort}'")
+            articles = await article_service.search_by_text(query, limit, sort)
         
-        # Retorna la lista de artículos directamente
-        logger.info(f"Devolviendo {len(articles)} artículos.")
+        # Return the list of articles directly
+        logger.info(f"Returning {len(articles)} articles.")
         return articles
 
     except HTTPException as http_exc:
         logger.error(f"HTTP Exception: {http_exc.detail}")
         raise http_exc
     except Exception as e:
-        logger.error(f"Error inesperado: {e}")
+        logger.error(f"Unexpected error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred. Please try again later."
