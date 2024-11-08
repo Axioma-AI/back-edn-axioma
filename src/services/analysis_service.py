@@ -51,24 +51,18 @@ class AnalysisService:
             logger.debug("Database session closed after fetching articles for analysis.")
 
         # Recopilar todos los puntajes para calcular el promedio general
-        all_scores = [float(news.sentiment_score) for news in news_records]
-        general_average = sum(all_scores) / len(all_scores) if all_scores else 0
-        logger.debug(f"General average sentiment score calculated: {general_average}")
+        average_scores = defaultdict(list)
+        logger.debug(f"General average sentiment score calculated: {average_scores}")
 
         # Agrupar las noticias por fecha para `news_history`
         sources_history = defaultdict(int)
-        positive_scores = defaultdict(list)
-        negative_scores = defaultdict(list)
 
         for news in news_records:
             date = news.publish_datetime.date()
             sources_history[date] += 1  # Contar el número de noticias por fecha
 
             # Clasificar en positivo o negativo basado en el promedio general
-            if float(news.sentiment_score) >= general_average:
-                positive_scores[date].append(float(news.sentiment_score))
-            else:
-                negative_scores[date].append(float(news.sentiment_score))
+            average_scores[date].append(float(news.sentiment_score))
 
         # Construir `news_history` como lista de noticias por fecha sin segmentación
         news_history_list = [
@@ -76,22 +70,21 @@ class AnalysisService:
             for date, count in sorted(sources_history.items())
         ]
 
-        # Construir `news_perception` para todas las fechas combinadas
+        # Construir `news_perception` para todas las fechas combinadas con las nuevas reglas
         news_perception_list = [
             NewsPerceptionModel(
                 date=str(date),
-                positive_sentiment_score=(sum(positive_scores[date]) / len(positive_scores[date]) if positive_scores[date] else 0),
-                negative_sentiment_score=(sum(negative_scores[date]) / len(negative_scores[date]) if negative_scores[date] else 0)
+                positive_sentiment_score=(1 + (sum(average_scores[date]) / len(average_scores[date])) if average_scores[date] else 0.5) / 2,
+                negative_sentiment_score=(1 - (sum(average_scores[date]) / len(average_scores[date])) if average_scores[date] else 0.5) / 2
             )
-            for date in sorted(set(positive_scores.keys()).union(negative_scores.keys()))
+            for date in sorted(set(average_scores.keys()))
         ]
+        scores = [score for scores in average_scores.values() for score in scores]
 
-        # Calcular `general_perception` como promedio de todos los puntajes clasificados
-        all_positive_scores = [score for scores in positive_scores.values() for score in scores]
-        all_negative_scores = [score for scores in negative_scores.values() for score in scores]
+        # Calcular `general_perception` como promedio de todos los puntajes clasificados, asegurando que la suma sea 1
         general_perception = GeneralPerceptionModel(
-            positive_sentiment_score=(sum(all_positive_scores) / len(all_positive_scores) if all_positive_scores else 0),
-            negative_sentiment_score=(sum(all_negative_scores) / len(all_negative_scores) if all_negative_scores else 0)
+            positive_sentiment_score=(1 + (sum(scores) / len(scores)) if scores else 0.5) / 2,
+            negative_sentiment_score=(1 - (sum(scores) / len(scores)) if scores else 0.5) / 2
         )
 
         # Construir la respuesta final como instancia de `AnalysisResponseModel`

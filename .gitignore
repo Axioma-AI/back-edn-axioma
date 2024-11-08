@@ -169,3 +169,5 @@ logs/
 .logs
 
 libreries.py
+
+tmp/
