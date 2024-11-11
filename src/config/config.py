@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     vector_database_host: str = "localhost"
     vector_database_port: int = 8000
 
+    google_client_id: str
+    google_client_secret: str
+    redirect_uri: str
+    testing_mode: bool = True  # Configura en False para producción
+
+    secret_key: str
+
     class Config:
         env_file = ".env"
 

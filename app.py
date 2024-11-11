@@ -4,6 +4,7 @@ from src.config.config import get_settings
 from src.config.cors_config import add_cors
 from src.routes.api.v1 import router as v1_router
 from src.utils.logger import setup_logger
+from starlette.middleware.sessions import SessionMiddleware
 
 logger = setup_logger(__name__, level=logging.INFO)
 
@@ -14,6 +15,9 @@ app = FastAPI(
     version=_SETTINGS.k_revision,
     level=_SETTINGS.log_level,
 )
+
+# Añadir el middleware personalizado
+app.add_middleware(SessionMiddleware, secret_key=_SETTINGS.secret_key)
 
 add_cors(app)
 
