@@ -48,7 +48,7 @@ async def get_articles(
             detail="An unexpected error occurred. Please try again later."
         )
 
-@router.get("/articles/excel", description="Retrieve all articles and return them in Excel (.xlsx) format")
+@router.get("/excel", description="Retrieve all articles and return them in Excel (.xlsx) format")
 async def get_articles_excel(
     query: str = "",  # Optional parameter to filter articles by query
 ):

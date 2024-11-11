@@ -10,6 +10,6 @@ from . import auth
 
 router = APIRouter()
 # router.include_router(articles.router)
-router.include_router(articles.router, prefix="/articles")
+router.include_router(articles.router)
 router.include_router(analysis.router, prefix="/analysis")
 router.include_router(auth.router)

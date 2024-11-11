@@ -15,7 +15,7 @@ async def login(request: Request, response: Response):
         response.set_cookie(key="session_id", value=session_id)
     
     # Llamar a la función de autenticación
-    return await authenticate_user(request)
+    return await authenticate_user(request, response)
 
 @router.get("/auth/callback")
 async def auth_callback(request: Request):
