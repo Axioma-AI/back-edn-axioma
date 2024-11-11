@@ -68,10 +68,24 @@ class ArticleService:
             "description": article.detail,
             "url": article.source_link,
             "urlToImage": article.image_url,
-            "publishedAt": article.publish_datetime.isoformat(),
+            "publishedAt": article.publish_datetime.isoformat() if article.publish_datetime is not None else "",  # Set to empty string if None
             "content": article.content,
             "sentiment_category": article.sentiment_category.name,
             "sentiment_score": float(article.sentiment_score),
         }
         logger.debug(f"Formatted article: {formatted_article}")
         return formatted_article
+
+    async def get_all_articles(self):
+        db = next(get_db())
+        try:
+            logger.debug("Fetching all articles sorted by publish_datetime in descending order.")
+            articles = db.query(NewsModel).order_by(NewsModel.publish_datetime.desc()).all()
+            logger.info(f"Fetched {len(articles)} articles.")
+            return [self.format_article(article) for article in articles]
+        except Exception as e:
+            logger.error(f"Error while fetching all articles: {e}")
+            raise
+        finally:
+            db.close()
+            logger.debug("Database session closed after fetching all articles.")

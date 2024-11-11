@@ -21,6 +21,7 @@ async def get_analysis(
     unit: str = Query(..., description="Interval unit (days, weeks, months, years)")
 ):
     try:
+        query = query.lower()
         logger.debug(f"Performing analysis with source_query='{query}', interval={interval}, unit='{unit}'")
         analysis_data = analysis_service.search_by_text_analysis(query=query, interval=interval, unit=unit)
         logger.info("Analysis data successfully retrieved.")
