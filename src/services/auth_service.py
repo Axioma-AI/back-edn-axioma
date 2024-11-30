@@ -31,9 +31,8 @@ async def authenticate_user(request: Request, response: Response):
     if not session_id:
         # Generate a new 'session_id' if not present
         session_id = str(uuid.uuid4())
-        # Set cookie with expiration time (e.g., 1 hour from now)
-        expires = datetime.utcnow() + datetime.timedelta(hours=1)
-        response.set_cookie(key="session_id", value=session_id, expires=expires)
+        # Set cookie without expiration time (session-based cookie)
+        response.set_cookie(key="session_id", value=session_id)
 
     # Redirect the user to Google for authentication
     redirect_uri = settings.redirect_uri
@@ -47,23 +46,26 @@ async def handle_auth_callback(request: Request):
     # Obtener el session_id desde la cookie
     session_id = request.cookies.get("session_id")
     if not session_id:
+        logger.error("No se ha encontrado el ID de sesión en la cookie.")
         raise HTTPException(status_code=403, detail="No se ha encontrado el ID de sesión.")
     
     # Completar el flujo OAuth y obtener los datos del usuario
+    logger.info("Intentando completar el flujo OAuth para session_id: %s", session_id)
     token = await oauth.google.authorize_access_token(request)
     id_token = token.get("id_token")
-
+    
     if not id_token:
+        logger.error("El token de ID no fue recibido.")
         raise HTTPException(status_code=500, detail="El token de ID no fue recibido.")
     
     # Decodificar manualmente el id_token
-    GOOGLE_CERTS_URL = "https://www.googleapis.com/oauth2/v3/certs"
-    jwks_client = PyJWKClient(GOOGLE_CERTS_URL)
-    signing_key = jwks_client.get_signing_key_from_jwt(id_token)
-
     try:
+        GOOGLE_CERTS_URL = "https://www.googleapis.com/oauth2/v3/certs"
+        jwks_client = PyJWKClient(GOOGLE_CERTS_URL)
+        signing_key = jwks_client.get_signing_key_from_jwt(id_token)
         user_data = jwt.decode(id_token, signing_key.key, algorithms=["RS256"], audience=settings.google_client_id)
     except jwt.PyJWTError as e:
+        logger.error("Error al verificar el token de ID: %s", e)
         raise HTTPException(status_code=403, detail="Error al verificar el token de ID") from e
 
     # Guardar los datos del usuario en el almacenamiento temporal
@@ -71,4 +73,5 @@ async def handle_auth_callback(request: Request):
         "email": user_data.get("email"),
         "name": user_data.get("name"),
     }
+    logger.info("Usuario autenticado correctamente: %s", auth_sessions[session_id])
     return auth_sessions[session_id]

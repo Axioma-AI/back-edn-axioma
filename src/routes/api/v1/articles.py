@@ -48,15 +48,26 @@ async def get_articles(
             detail="An unexpected error occurred. Please try again later."
         )
 
+def clean_illegal_characters(text):
+    if text is None:
+        return ""
+    # Remove illegal characters by filtering out non-ASCII or known illegal characters
+    return ''.join(c for c in text if ord(c) < 128 and c not in ['\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', '\x08', '\x0B', '\x0C', '\x0E', '\x0F', '\x10', '\x11', '\x12', '\x13', '\x14', '\x15', '\x16', '\x17', '\x18', '\x19', '\x1A', '\x1B', '\x1C', '\x1D', '\x1E', '\x1F'])
+
+
 @router.get("/excel", description="Retrieve all articles and return them in Excel (.xlsx) format")
 async def get_articles_excel(
     query: str = "",  # Optional parameter to filter articles by query
 ):
-
     try:
         query = query.lower()
         # Fetch all articles matching the query, or all if query is empty
         articles = await article_service.search_by_text(query, limit=10000) if query else await article_service.get_all_articles()
+
+        # Check if articles were returned
+        if articles is None:
+            logger.error("No articles were fetched. The returned data is None.")
+            raise HTTPException(status_code=500, detail="No articles were found for the specified query.")
 
         # Create an in-memory Excel workbook
         workbook = Workbook()
@@ -69,16 +80,17 @@ async def get_articles_excel(
 
         # Add article rows
         for article in articles:
+            # Sanitize content to remove illegal characters
             sheet.append([
                 article["id"],
                 article["source"]["name"],
                 article.get("author", ""),
                 article["title"],
-                article.get("description", ""),
+                clean_illegal_characters(article.get("description", "")),
                 article["url"],
                 article.get("urlToImage", ""),
                 article.get("publishedAt", ""),
-                article.get("content", ""),
+                clean_illegal_characters(article.get("content", "")),
                 article["sentiment_category"],
                 article["sentiment_score"]
             ])
