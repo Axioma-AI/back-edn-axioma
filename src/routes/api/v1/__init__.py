@@ -11,7 +11,7 @@ from . import favorites
 
 router = APIRouter()
 # router.include_router(articles.router)
-router.include_router(articles.router)
-router.include_router(analysis.router)
-router.include_router(categories.router)
-router.include_router(favorites.router)
+router.include_router(articles.router, tags=["Articles"])
+router.include_router(analysis.router, tags=["Analysis"])
+router.include_router(categories.router, tags=["Categories"])
+router.include_router(favorites.router, tags=["Favorites"])
