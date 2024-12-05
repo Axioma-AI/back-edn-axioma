@@ -20,6 +20,19 @@ class Settings(BaseSettings):
     vector_database_host: str = "localhost"
     vector_database_port: int = 8000
 
+    firebase_type: str
+    firebase_project_id: str
+    firebase_private_key_id: str
+    firebase_private_key: str
+    firebase_client_email: str
+    firebase_client_id: str
+    firebase_auth_uri: str
+    firebase_token_uri: str
+    firebase_auth_provider_x509_cert_url: str
+    firebase_client_x509_cert_url: str
+    firebase_universe_domain: str
+    firebase_database_url: str 
+
     class Config:
         env_file = ".env"
 

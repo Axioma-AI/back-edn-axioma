@@ -171,3 +171,9 @@ logs/
 libreries.py
 
 tmp/
+
+google-services.json
+
+*.json
+
+create_token_test.py

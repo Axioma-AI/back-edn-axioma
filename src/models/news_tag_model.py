@@ -1,13 +1,11 @@
-from __future__ import annotations
+from __future__ import annotations  # Enable forward references
 
 import pandas as pd
 from sqlalchemy import Column, Integer, Numeric, String, ForeignKey, DateTime, Text, DECIMAL, Enum
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.orm import relationship
+from src.models.base_model import Base
 from src.schema.sentiment_category import SentimentCategory
 from src.schema.bank_new import BankNew
-
-class Base(DeclarativeBase):
-    pass
 
 class NewsTagAssociation(Base):
     __tablename__ = 'news_tag'
@@ -42,8 +40,10 @@ class NewsModel(Base):
     source_link = Column(String(255), nullable=False, unique=True)
     sentiment_category = Column(Enum(SentimentCategory), nullable=False)
     sentiment_score = Column(Numeric(5, 5), nullable=False)
-    tag_associations = relationship('NewsTagAssociation', back_populates='news', overlaps="tags")
-    tags = relationship('TagsModel', secondary='news_tag', back_populates='news', overlaps="tag_associations", viewonly=True)
+
+    tag_associations = relationship("NewsTagAssociation", back_populates="news", overlaps="tags")
+    tags = relationship("TagsModel", secondary='news_tag', back_populates="news", overlaps="tag_associations", viewonly=True)
+    favorites = relationship("FavoritesModel", back_populates="news", cascade="all, delete-orphan")
 
     @staticmethod
     def from_bank_new(bank_new: BankNew) -> 'NewsModel':
