@@ -1,7 +1,6 @@
 import logging
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, status
 from sqlalchemy.orm import Session
-from streamlit import status
 from src.config.db_config import get_db
 from src.schema.responses.response_favorites_models import AddFavoriteResponseModel, DeleteFavoriteResponseModel, FavoritesResponseModel
 from src.schema.examples.response_favorites_examples import favorites_responses_post, favorites_responses_get, favorites_responses_delete
