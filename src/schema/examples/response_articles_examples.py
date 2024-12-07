@@ -72,6 +72,69 @@ internal_server_error_example = {
     },
 }
 
+# Ejemplo para respuesta 200 - Respuesta exitosa
+successful_response_example_by_id = {
+    "description": "Successful Response - Article found by ID",
+    "content": {
+        "application/json": {
+            "example": {
+                "id": 6845,
+                "source": {"id": "La Razon", "name": "La Razon"},
+                "author": "Yuri Flores",
+                "title": "Convenio entre Banco Unión e ICBC de China está en fase final para operaciones en yuanes",
+                "description": "En julio del año pasado, el Gobierno informaba sobre las gestiones que realizaba para que un banco chino se instale en el país.",
+                "url": "https://www.la-razon.com/economia/2024/01/02/convenio-entre-banco-union-e-icbc-de-china-esta-en-fase-final-para-operaciones-en-yuanes/",
+                "urlToImage": "https://www.la-razon.com/wp-content/uploads/2024/01/02/19/WhatsApp-Image-2024-01-02-at-14.06.44.jpeg",
+                "publishedAt": "2024-01-02T15:21:00",
+                "content": "Las negociaciones para establecer un convenio entre el estatal Banco Unión...",
+                "sentiment_category": "POSITIVO",
+                "sentiment_score": 0.35917,
+            }
+        }
+    },
+}
+
+# Ejemplo para respuesta 400 - Solicitud incorrecta
+bad_request_example_by_id = {
+    "model": ErrorResponseModel,
+    "description": "Bad Request - Invalid Request",
+    "content": {
+        "application/json": {
+            "example": {"detail": "Invalid request. The article ID must be a valid integer greater than 0."}
+        }
+    },
+}
+
+# Ejemplo para respuesta 404 - No encontrado
+not_found_example_by_id = {
+    "model": ErrorResponseModel,
+    "description": "Not Found - The requested article does not exist",
+    "content": {
+        "application/json": {
+            "example": {"detail": "The article with the specified ID was not found."}
+        }
+    },
+}
+
+# Ejemplo para respuesta 500 - Error interno del servidor
+internal_server_error_example_by_id = {
+    "model": ErrorResponseModel,
+    "description": "Internal Server Error - Unexpected error",
+    "content": {
+        "application/json": {
+            "example": {"detail": "An unexpected error occurred. Please try again later."}
+        }
+    },
+}
+
+# Configuración de respuestas para el endpoint
+article_by_id_responses = {
+    200: successful_response_example_by_id,
+    400: bad_request_example_by_id,
+    404: not_found_example_by_id,
+    500: internal_server_error_example_by_id,
+}
+
 # Configuración de respuestas para el endpoint
 articles_responses = {
     200: successful_response_example,

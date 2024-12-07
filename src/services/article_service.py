@@ -89,3 +89,22 @@ class ArticleService:
         finally:
             db.close()
             logger.debug("Database session closed after fetching all articles.")
+    
+    async def get_article_by_id(self, article_id: int):
+        db = next(get_db())
+        try:
+            logger.debug(f"Querying database for article with ID: {article_id}")
+            article = db.query(NewsModel).filter(NewsModel.id == article_id).first()
+            if article:
+                logger.info(f"Article with ID {article_id} found.")
+                return self.format_article(article)
+            else:
+                logger.warning(f"No article found with ID: {article_id}")
+                return None
+        except Exception as e:
+            logger.error(f"Error while fetching article by ID: {e}")
+            raise
+        finally:
+            db.close()
+            logger.debug("Database session closed after querying article by ID.")
+
