@@ -47,3 +47,13 @@ class ErrorResponseModel(BaseModel):
                 "detail": "Invalid request. Query parameter is missing."
             }
         }
+
+class NewsSourceResponseModel(BaseModel):
+    sources: List[str]
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "sources": ["CNN", "BBC", "Reuters", "Al Jazeera"]
+            }
+        }

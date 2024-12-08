@@ -177,3 +177,5 @@ google-services.json
 *.json
 
 create_token_test.py
+
+*.ipynb

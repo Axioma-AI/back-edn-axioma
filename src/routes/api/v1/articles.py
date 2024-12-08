@@ -4,8 +4,8 @@ import logging
 from fastapi import APIRouter, Query, HTTPException, Response, status
 from typing import List
 from src.services.article_service import ArticleService
-from src.schema.responses.response_articles_models import ArticleResponseModel
-from src.schema.examples.response_articles_examples import articles_responses, article_by_id_responses
+from src.schema.responses.response_articles_models import ArticleResponseModel, NewsSourceResponseModel
+from src.schema.examples.response_articles_examples import articles_responses, article_by_id_responses, news_sources_responses
 from src.utils.logger import setup_logger
 from openpyxl import Workbook
 
@@ -134,4 +134,36 @@ async def get_article_by_id(id: int):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred. Please try again later."
+        )
+    
+@router.get(
+    "/sources",
+    description="Retrieve a list of unique news sources",
+    response_model=NewsSourceResponseModel,
+    responses=news_sources_responses,
+)
+async def get_news_sources():
+    try:
+        sources = await article_service.get_all_news_sources()
+        if not sources:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The requested resource does not exist.",
+            )
+        logger.info(f"Retrieved {len(sources)} unique news sources.")
+        return {"sources": sources}
+    except HTTPException as http_exc:
+        logger.error(f"HTTP Exception: {http_exc.detail}")
+        raise http_exc
+    except ValueError:
+        logger.error("Invalid request. Query parameter is invalid or missing.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid request. Query parameter is invalid or missing.",
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred. Please try again later.",
         )

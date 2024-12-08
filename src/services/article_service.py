@@ -108,3 +108,17 @@ class ArticleService:
             db.close()
             logger.debug("Database session closed after querying article by ID.")
 
+    async def get_all_news_sources(self):
+        db = next(get_db())
+        try:
+            logger.debug("Fetching all unique news sources.")
+            sources = db.query(NewsModel.news_source).distinct().all()
+            unique_sources = [source[0] for source in sources if source[0] is not None]
+            logger.info(f"Found {len(unique_sources)} unique news sources.")
+            return unique_sources
+        except Exception as e:
+            logger.error(f"Error while fetching unique news sources: {e}")
+            raise
+        finally:
+            db.close()
+            logger.debug("Database session closed after fetching unique news sources.")

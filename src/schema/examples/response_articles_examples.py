@@ -127,6 +127,63 @@ internal_server_error_example_by_id = {
     },
 }
 
+# Ejemplo para respuesta 200 - Respuesta exitosa
+news_sources_successful_response_example = {
+    "description": "Successful Response - List of unique news sources",
+    "content": {
+        "application/json": {
+            "example": {
+                "sources": ["CNN", "BBC", "Reuters", "Al Jazeera"]
+            }
+        }
+    },
+}
+
+# Ejemplo para respuesta 400 - Solicitud Incorrecta
+news_sources_bad_request_example = {
+    "model": ErrorResponseModel,
+    "description": "Bad Request - Invalid Query Parameter",
+    "content": {
+        "application/json": {
+            "example": {
+                "detail": "Invalid request. Query parameter is invalid or missing."
+            }
+        }
+    },
+}
+
+# Ejemplo para respuesta 404 - No Encontrado
+news_sources_not_found_example = {
+    "model": ErrorResponseModel,
+    "description": "Not Found - The requested resource does not exist",
+    "content": {
+        "application/json": {
+            "example": {
+                "detail": "The requested resource does not exist."
+            }
+        }
+    },
+}
+
+# Ejemplo para respuesta 500 - Error Interno del Servidor
+news_sources_internal_server_error_example = {
+    "model": ErrorResponseModel,
+    "description": "Internal Server Error - Unexpected error",
+    "content": {
+        "application/json": {
+            "example": {"detail": "An unexpected error occurred. Please try again later."}
+        }
+    },
+}
+
+# Configuración de respuestas para el endpoint /sources
+news_sources_responses = {
+    200: news_sources_successful_response_example,
+    400: news_sources_bad_request_example,
+    404: news_sources_not_found_example,
+    500: news_sources_internal_server_error_example,
+}
+
 # Configuración de respuestas para el endpoint
 article_by_id_responses = {
     200: successful_response_example_by_id,
