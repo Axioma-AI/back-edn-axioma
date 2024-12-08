@@ -122,3 +122,23 @@ class ArticleService:
         finally:
             db.close()
             logger.debug("Database session closed after fetching unique news sources.")
+
+    async def search_by_source(self, source: str, limit: int, sort: str = "publish_datetime"):
+        db = next(get_db())
+        try:
+            logger.debug(f"Querying database for articles with news_source='{source}'.")
+            articles = (
+                db.query(NewsModel)
+                .filter(NewsModel.news_source.ilike(f"%{source}%"))
+                .order_by(getattr(NewsModel, sort).desc())
+                .limit(limit)
+                .all()
+            )
+            logger.info(f"Fetched {len(articles)} articles for source='{source}'.")
+            return [self.format_article(article) for article in articles]
+        except Exception as e:
+            logger.error(f"Error while fetching articles by source: {e}")
+            raise
+        finally:
+            db.close()
+            logger.debug("Database session closed after querying articles by source.")

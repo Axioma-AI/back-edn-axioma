@@ -105,37 +105,6 @@ async def get_articles_excel(
             detail="An unexpected error occurred. Please try again later."
         )
 
-@router.get("/articles/{id}",
-            description="Retrieve a single article by its ID",
-            response_model=ArticleResponseModel,
-            responses=article_by_id_responses)
-async def get_article_by_id(id: int):
-    try:
-        logger.debug(f"Fetching article with ID: {id}")
-        article = await article_service.get_article_by_id(id)
-        if not article:
-            logger.warning(f"Article with ID {id} not found.")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="The article with the specified ID was not found."
-            )
-        return article
-    except HTTPException as http_exc:
-        logger.error(f"HTTP Exception: {http_exc.detail}")
-        raise http_exc
-    except ValueError:
-        logger.error(f"Invalid article ID: {id}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid request. The article ID must be a valid integer greater than 0."
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred. Please try again later."
-        )
-    
 @router.get(
     "/sources",
     description="Retrieve a list of unique news sources",
@@ -167,3 +136,65 @@ async def get_news_sources():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred. Please try again later.",
         )
+
+@router.get(
+    "/articles/by-source",
+    description="Retrieve a list of articles filtered by news source",
+    response_model=List[ArticleResponseModel],
+    responses=articles_responses,
+)
+async def get_articles_by_source(
+    source: str = Query(..., description="News source to filter articles"),
+    limit: int = Query(50, description="Maximum number of articles to return"),
+    sort: str = Query("publish_datetime", description="Field to sort results by (default is by date)"),
+):
+    # Lógica del endpoint
+    try:
+        source = source.lower()
+
+        logger.debug(f"Fetching articles with source='{source}', limit={limit}, sort='{sort}'.")
+        articles = await article_service.search_by_source(source, limit, sort)
+        
+        logger.info(f"Returning {len(articles)} articles for source='{source}'.")
+        return articles
+    except HTTPException as http_exc:
+        logger.error(f"HTTP Exception: {http_exc.detail}")
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred. Please try again later.",
+        )
+
+@router.get("/articles/{id}",
+            description="Retrieve a single article by its ID",
+            response_model=ArticleResponseModel,
+            responses=article_by_id_responses)
+async def get_article_by_id(id: int):
+    try:
+        logger.debug(f"Fetching article with ID: {id}")
+        article = await article_service.get_article_by_id(id)
+        if not article:
+            logger.warning(f"Article with ID {id} not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The article with the specified ID was not found."
+            )
+        return article
+    except HTTPException as http_exc:
+        logger.error(f"HTTP Exception: {http_exc.detail}")
+        raise http_exc
+    except ValueError:
+        logger.error(f"Invalid article ID: {id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid request. The article ID must be a valid integer greater than 0."
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred. Please try again later."
+        )
+    
