@@ -28,15 +28,17 @@ class AddCategoryModel(BaseModel):
 class AddCategoriesResponseModel(BaseModel):
     message: str
     categories: List[CategoryModel]
+    skipped_categories: Optional[List[str]] = None  # Nuevas categorías ignoradas
 
     class Config:
         schema_extra = {
             "example": {
-                "message": "Categories added successfully",
+                "message": "Categories added successfully with some duplicates skipped",
                 "categories": [
                     {"id": 4, "keyword": "data science"},
                     {"id": 5, "keyword": "machine learning"}
-                ]
+                ],
+                "skipped_categories": ["blockchain", "tecnología"]  # Duplicados ignorados
             }
         }
 

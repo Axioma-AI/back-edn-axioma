@@ -10,29 +10,48 @@ logger = setup_logger(__name__, level=logging.INFO)
 class CategoriesService:
     async def process_categories(self, token: str, keywords: list, db: Session):
         """
-        Procesa las categorías: valida el token, sincroniza el usuario con la base de datos,
-        y almacena los intereses del usuario. Retorna las categorías agregadas.
+        Procesa las categorías: elimina las existentes, maneja duplicados dentro de la solicitud y agrega las nuevas.
         """
         try:
             # Valida y sincroniza al usuario con la base de datos
             user = decode_and_sync_user(token, db)
 
-            # Agrega los intereses del usuario
+            # Eliminar todas las categorías existentes del usuario
+            db.query(InterestsModel).filter_by(user_id=user.id).delete()
+            db.commit()  # Confirma la eliminación
+
+            # Convertir todas las palabras clave a minúsculas
+            keywords = [keyword.lower() for keyword in keywords]
+
+            # Filtrar duplicados en las palabras clave enviadas
+            unique_keywords = list(set(keywords))  # Usar set para eliminar duplicados en el mismo request
+
+            # Obtener palabras clave existentes (después de eliminar las categorías previas)
+            existing_keywords = {interest.keyword for interest in db.query(InterestsModel).filter_by(user_id=user.id).all()}
+
+            # Filtrar palabras clave ya existentes
+            new_keywords = [keyword for keyword in unique_keywords if keyword not in existing_keywords]
+            skipped_keywords = [keyword for keyword in unique_keywords if keyword in existing_keywords]
+
+            # Agregar las nuevas categorías
             interests = []
-            for keyword in keywords:
-                lower_keyword = keyword.lower()
-                interest = InterestsModel(user_id=user.id, keyword=lower_keyword)
+            for keyword in new_keywords:
+                interest = InterestsModel(user_id=user.id, keyword=keyword)
                 db.add(interest)
                 interests.append(interest)
 
             # Commit de los intereses
             db.commit()
 
-            # Construye la lista de categorías agregadas después del commit
+            # Construir la lista de categorías agregadas
             added_categories = [{"id": interest.id, "keyword": interest.keyword} for interest in interests]
 
-            logger.info(f"Intereses agregados exitosamente para el usuario: {user.email}")
-            return added_categories
+            logger.info(f"Intereses procesados para el usuario: {user.email}")
+            return {
+                "message": "Categories added successfully",
+                "categories": added_categories,
+                "skipped_categories": skipped_keywords  # Duplicados ignorados
+            }
 
         except Exception as e:
             # Si ocurre un error, realiza un rollback

@@ -29,11 +29,17 @@ async def add_categories(
     """
     try:
         logger.info(f"Adding categories for token: {token}, keywords: {keywords}")
-        added_categories = await categories_service.process_categories(token, keywords, db)
+        
+        # Llamamos al servicio para procesar las categorías
+        result = await categories_service.process_categories(token, keywords, db)
+        
         logger.info(f"Categories added successfully for token: {token}")
+        
+        # Retornamos el mensaje, las categorías agregadas y las categorías ignoradas
         return {
-            "message": "Keywords added successfully",
-            "categories": added_categories,
+            "message": result["message"],
+            "categories": result["categories"],
+            "skipped_categories": result.get("skipped_categories", [])
         }
     except HTTPException as http_exc:
         logger.error(f"HTTP Exception: {http_exc.detail}")

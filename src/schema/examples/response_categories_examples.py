@@ -20,15 +20,16 @@ successful_get_response_example = {
 
 # Ejemplo para respuesta 200 - Respuesta exitosa al agregar categorías (POST /categories)
 successful_post_response_example = {
-    "description": "Successful Response - Categories added successfully",
+    "description": "Successful Response - Categories added successfully, with duplicates skipped",
     "content": {
         "application/json": {
             "example": {
-                "message": "Categories added successfully",
+                "message": "Categories added successfully with some duplicates skipped",
                 "categories": [
                     {"id": 4, "keyword": "data science"},
                     {"id": 5, "keyword": "machine learning"}
-                ]
+                ],
+                "skipped_categories": ["blockchain", "tecnología"]  # Duplicados ignorados
             }
         }
     },
