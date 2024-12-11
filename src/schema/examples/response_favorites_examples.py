@@ -18,7 +18,36 @@ successful_get_favorites_response_example = {
         "application/json": {
             "example": {
                 "user_id": 42,
-                "news_ids": [101, 202, 303],
+                "articles": [
+                    {
+                        "id": 6845,
+                        "source": {"id": "La Razon", "name": "La Razon"},
+                        "author": "Yuri Flores",
+                        "title": "Convenio entre Banco Unión e ICBC de China está en fase final para operaciones en yuanes",
+                        "description": "En julio del año pasado...",
+                        "url": "https://www.la-razon.com/economia/2024/01/02/convenio-entre-banco-union-e-icbc-de-china-esta-en-fase-final-para-operaciones-en-yuanes/",
+                        "urlToImage": "https://www.la-razon.com/wp-content/uploads/2024/01/02/19/WhatsApp-Image-2024-01-02-at-14.06.44.jpeg",
+                        "publishedAt": "2024-01-02T15:21:00",
+                        "content": "Las negociaciones...",
+                        "sentiment_category": "POSITIVO",
+                        "sentiment_score": 0.35917,
+                        "distance": None
+                    },
+                    {
+                        "id": 6846,
+                        "source": {"id": "El Deber", "name": "El Deber"},
+                        "author": "Carlos Gustavo",
+                        "title": "El Gobierno anuncia que el BCB emitirá bonos soberanos en yuanes",
+                        "description": "El ministro de Economía, Marcelo Montenegro, informó que el Banco Central de Bolivia emitirá bonos soberanos en yuanes...",
+                        "url": "https://eldeber.com.bo/economia/El-Gobierno-anuncia-que-el-BCB-emitira-bonos-soberanos-en-yuanes-20240102-0063.html",
+                        "urlToImage": "https://eldeber.com.bo/export/sites/eldeber/img/2024/01/02/20240102-0063.jpg_1359985865.jpg",
+                        "publishedAt": "2024-01-02T15:21:00",
+                        "content": "El ministro de Economía, Marcelo Montenegro, informó...",
+                        "sentiment_category": "NEUTRAL",
+                        "sentiment_score": 0.0,
+                        "distance": None
+                    }
+                ]
             }
         }
     },

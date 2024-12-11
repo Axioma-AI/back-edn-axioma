@@ -45,19 +45,41 @@ class FavoritesService:
 
     async def get_favorites(self, token: str, db: Session):
         """
-        Obtiene las noticias favoritas del usuario.
+        Obtiene las noticias favoritas completas del usuario.
         """
         try:
             # Valida y sincroniza al usuario con la base de datos
             user = decode_and_sync_user(token, db)
 
-            # Obtiene las noticias favoritas del usuario
+            # Obtiene los IDs de las noticias favoritas
             favorites = db.query(FavoritesModel).filter_by(user_id=user.id).all()
+            favorite_ids = [favorite.news_id for favorite in favorites]
+
+            # Recupera las noticias completas asociadas a los IDs
+            articles = db.query(NewsModel).filter(NewsModel.id.in_(favorite_ids)).all()
+
+            # Formatea las noticias utilizando ArticleResponseModel
+            formatted_articles = [
+                {
+                    "id": article.id,
+                    "source": {"id": article.news_source, "name": article.news_source},
+                    "author": article.author,
+                    "title": article.title,
+                    "description": article.detail,
+                    "url": article.source_link,
+                    "urlToImage": article.image_url,
+                    "publishedAt": article.publish_datetime.isoformat() if article.publish_datetime else None,
+                    "content": article.content,
+                    "sentiment_category": article.sentiment_category.name,
+                    "sentiment_score": float(article.sentiment_score),
+                }
+                for article in articles
+            ]
 
             logger.info(f"Favorites retrieved successfully for user: {user.email}")
             return {
                 "user_id": user.id,
-                "news_ids": [favorite.news_id for favorite in favorites],
+                "articles": formatted_articles,
             }
 
         except Exception as e:
