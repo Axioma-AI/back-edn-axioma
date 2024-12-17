@@ -20,7 +20,7 @@ def setup_logger(name, level=logging.INFO, log_file='app.log'):
     # Create a file handler
     if not os.path.exists('logs'):
         os.makedirs('logs')
-    file_handler = logging.FileHandler(os.path.join('logs', log_file))
+    file_handler = logging.FileHandler(os.path.join('logs', log_file), encoding='utf-8')
     file_handler.setLevel(level)
     file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(file_formatter)
