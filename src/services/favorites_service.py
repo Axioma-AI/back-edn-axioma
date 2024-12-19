@@ -1,6 +1,6 @@
 from http.client import HTTPException
 import logging
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from src.models.news_tag_model import NewsModel
 from src.models.favorites_model import FavoritesModel
 from src.utils.auth_utils import decode_and_sync_user
@@ -44,9 +44,6 @@ class FavoritesService:
             raise e
 
     async def get_favorites(self, token: str, db: Session):
-        """
-        Obtiene las noticias favoritas completas del usuario.
-        """
         try:
             # Valida y sincroniza al usuario con la base de datos
             user = decode_and_sync_user(token, db)
@@ -56,9 +53,14 @@ class FavoritesService:
             favorite_ids = [favorite.news_id for favorite in favorites]
 
             # Recupera las noticias completas asociadas a los IDs
-            articles = db.query(NewsModel).filter(NewsModel.id.in_(favorite_ids)).all()
+            articles = (
+                db.query(NewsModel)
+                .options(joinedload(NewsModel.translations))  # Cargar traducciones
+                .filter(NewsModel.id.in_(favorite_ids))
+                .all()
+            )
 
-            # Formatea las noticias utilizando ArticleResponseModel
+            # Formatea las noticias
             formatted_articles = [
                 {
                     "id": article.id,
@@ -72,20 +74,27 @@ class FavoritesService:
                     "content": article.content,
                     "sentiment_category": article.sentiment_category.name,
                     "sentiment_score": float(article.sentiment_score),
+                    "translations": [
+                        {
+                            "id": translation.id,
+                            "title_tra": translation.title_tra,
+                            "detail_tra": translation.detail_tra,
+                            "content_tra": translation.content_tra,
+                            "language": translation.language,
+                        }
+                        for translation in article.translations
+                    ],
                 }
                 for article in articles
             ]
 
             logger.info(f"Favorites retrieved successfully for user: {user.email}")
-            return {
-                "user_id": user.id,
-                "articles": formatted_articles,
-            }
+            return {"user_id": user.id, "articles": formatted_articles}
 
         except Exception as e:
             logger.error(f"Error while retrieving favorites: {e}")
             raise e
-
+    
     async def delete_favorite(self, token: str, news_id: int, db: Session):
         """
         Elimina una noticia de la lista de favoritos del usuario.

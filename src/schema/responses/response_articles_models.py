@@ -5,6 +5,13 @@ class SourceModel(BaseModel):
     id: str
     name: str
 
+class TranslationModel(BaseModel):
+    id: int
+    title_tra: str
+    detail_tra: str
+    content_tra: str
+    language: str
+
 class ArticleResponseModel(BaseModel):
     id: int
     source: SourceModel
@@ -18,6 +25,7 @@ class ArticleResponseModel(BaseModel):
     sentiment_category: str
     sentiment_score: float
     distance: Optional[float] = None
+    translations: List[TranslationModel] = []
 
     class Config:
         orm_mode = True
@@ -34,10 +42,25 @@ class ArticleResponseModel(BaseModel):
                 "content": "Las negociaciones para establecer un convenio entre el estatal Banco Unión...",
                 "sentiment_category": "POSITIVO",
                 "sentiment_score": 0.35917,
-                "distance": 0.5089
+                "distance": 0.5089,
+                "translations": [
+                    {
+                        "id": 1,
+                        "title_tra": "Agreement between Banco Unión and ICBC of China is in its final phase for yuan operations",
+                        "detail_tra": "In July of last year, the government reported on the steps...",
+                        "content_tra": "Negotiations to establish an agreement between the state Banco Unión...",
+                        "language": "en"
+                    },
+                    {
+                        "id": 2,
+                        "title_tra": "Convenio entre Banco Unión e ICBC de China está en fase final para operaciones en yuanes",
+                        "detail_tra": "En julio del año pasado, el Gobierno informaba sobre las gestiones...",
+                        "content_tra": "Las negociaciones para establecer un convenio entre el estatal Banco Unión...",
+                        "language": "es"
+                    }
+                ]
             }
         }
-
 class ErrorResponseModel(BaseModel):
     detail: str
 

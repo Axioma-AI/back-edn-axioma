@@ -1,7 +1,7 @@
 import logging
 from src.config.chromadb_config import get_chroma_db_client
 from src.models.news_tag_model import NewsModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from src.config.db_config import get_db
 from src.utils.logger import setup_logger
 
@@ -19,6 +19,7 @@ class ArticleService:
             logger.debug(f"Fetching articles with limit={limit} sorted by {sort} in descending order.")
             articles = (
                 db.query(NewsModel)
+                .options(joinedload(NewsModel.translations))  # Load translations
                 .order_by(getattr(NewsModel, sort).desc())
                 .limit(limit)
                 .all()
@@ -68,12 +69,22 @@ class ArticleService:
             "description": article.detail,
             "url": article.source_link,
             "urlToImage": article.image_url,
-            "publishedAt": article.publish_datetime.isoformat() if article.publish_datetime is not None else "",  # Set to empty string if None
+            "publishedAt": article.publish_datetime.isoformat() if article.publish_datetime else "",
             "content": article.content,
             "sentiment_category": article.sentiment_category.name,
             "sentiment_score": float(article.sentiment_score),
+            "translations": [
+                {
+                    "id": translation.id,
+                    "title_tra": translation.title_tra,
+                    "detail_tra": translation.detail_tra,
+                    "content_tra": translation.content_tra,
+                    "language": translation.language
+                }
+                for translation in article.translations
+            ],
         }
-        logger.debug(f"Formatted article: {formatted_article}")
+        logger.debug(f"Formatted article with translations: {formatted_article}")
         return formatted_article
 
     async def get_all_articles(self):
@@ -94,7 +105,13 @@ class ArticleService:
         db = next(get_db())
         try:
             logger.debug(f"Querying database for article with ID: {article_id}")
-            article = db.query(NewsModel).filter(NewsModel.id == article_id).first()
+            # Añadir joinedload para cargar la relación de traducciones
+            article = (
+                db.query(NewsModel)
+                .options(joinedload(NewsModel.translations))  # Cargar la relación 'translations'
+                .filter(NewsModel.id == article_id)
+                .first()
+            )
             if article:
                 logger.info(f"Article with ID {article_id} found.")
                 return self.format_article(article)
@@ -129,6 +146,7 @@ class ArticleService:
             logger.debug(f"Querying database for articles with news_source='{source}'.")
             articles = (
                 db.query(NewsModel)
+                .options(joinedload(NewsModel.translations))  # Cargar las traducciones
                 .filter(NewsModel.news_source.ilike(f"%{source}%"))
                 .order_by(getattr(NewsModel, sort).desc())
                 .limit(limit)

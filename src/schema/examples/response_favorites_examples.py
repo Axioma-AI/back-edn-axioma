@@ -31,7 +31,23 @@ successful_get_favorites_response_example = {
                         "content": "Las negociaciones...",
                         "sentiment_category": "POSITIVO",
                         "sentiment_score": 0.35917,
-                        "distance": None
+                        "distance": None,
+                        "translations": [
+                            {
+                                "id": 1,
+                                "title_tra": "Agreement between Banco Unión and ICBC of China...",
+                                "detail_tra": "In July of last year...",
+                                "content_tra": "Negotiations to finalize the agreement...",
+                                "language": "en"
+                            },
+                            {
+                                "id": 2,
+                                "title_tra": "Convenio entre Banco Unión e ICBC de China...",
+                                "detail_tra": "En julio del año pasado...",
+                                "content_tra": "Las negociaciones para establecer un acuerdo...",
+                                "language": "es"
+                            }
+                        ]
                     },
                     {
                         "id": 6846,
@@ -45,13 +61,23 @@ successful_get_favorites_response_example = {
                         "content": "El ministro de Economía, Marcelo Montenegro, informó...",
                         "sentiment_category": "NEUTRAL",
                         "sentiment_score": 0.0,
-                        "distance": None
+                        "distance": None,
+                        "translations": [
+                            {
+                                "id": 3,
+                                "title_tra": "Government announces BCB to issue sovereign bonds in yuan",
+                                "detail_tra": "The Minister of Economy, Marcelo Montenegro...",
+                                "content_tra": "The Central Bank of Bolivia plans to issue yuan bonds...",
+                                "language": "en"
+                            }
+                        ]
                     }
                 ]
             }
         }
     },
 }
+
 
 # Example for a successful DELETE response
 successful_delete_favorite_response_example = {

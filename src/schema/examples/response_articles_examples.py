@@ -18,21 +18,23 @@ successful_response_example = {
                     "content": "Las negociaciones...",
                     "sentiment_category": "POSITIVO",
                     "sentiment_score": 0.35917,
-                    "distance": 0.5089
-                },
-                {
-                    "id": 6846,
-                    "source": {"id": "El Deber", "name": "El Deber"},
-                    "author": "Carlos Gustavo",
-                    "title": "El Gobierno anuncia que el BCB emitirá bonos soberanos en yuanes",
-                    "description": "El ministro de Economía, Marcelo Montenegro, informó que el Banco Central de Bolivia emitirá bonos soberanos en yuanes...",
-                    "url": "https://eldeber.com.bo/economia/El-Gobierno-anuncia-que-el-BCB-emitira-bonos-soberanos-en-yuanes-20240102-0063.html",
-                    "urlToImage": "https://eldeber.com.bo/export/sites/eldeber/img/2024/01/02/20240102-0063.jpg_1359985865.jpg",
-                    "publishedAt": "2024-01-02T15:21:00",
-                    "content": "El ministro de Economía, Marcelo Montenegro, informó...",
-                    "sentiment_category": "NEUTRAL",
-                    "sentiment_score": 0.0,
-                    "distance": 0.0
+                    "distance": 0.5089,
+                    "translations": [
+                        {
+                            "id": 1,
+                            "title_tra": "Agreement between Banco Unión...",
+                            "detail_tra": "In July of last year...",
+                            "content_tra": "Negotiations are ongoing...",
+                            "language": "en"
+                        },
+                        {
+                            "id": 2,
+                            "title_tra": "Convenio entre Banco Unión...",
+                            "detail_tra": "En julio del año pasado...",
+                            "content_tra": "Las negociaciones están en curso...",
+                            "language": "es"
+                        }
+                    ]
                 }
             ]
         }
@@ -82,13 +84,29 @@ successful_response_example_by_id = {
                 "source": {"id": "La Razon", "name": "La Razon"},
                 "author": "Yuri Flores",
                 "title": "Convenio entre Banco Unión e ICBC de China está en fase final para operaciones en yuanes",
-                "description": "En julio del año pasado, el Gobierno informaba sobre las gestiones que realizaba para que un banco chino se instale en el país.",
+                "description": "En julio del año pasado...",
                 "url": "https://www.la-razon.com/economia/2024/01/02/convenio-entre-banco-union-e-icbc-de-china-esta-en-fase-final-para-operaciones-en-yuanes/",
                 "urlToImage": "https://www.la-razon.com/wp-content/uploads/2024/01/02/19/WhatsApp-Image-2024-01-02-at-14.06.44.jpeg",
                 "publishedAt": "2024-01-02T15:21:00",
-                "content": "Las negociaciones para establecer un convenio entre el estatal Banco Unión...",
+                "content": "Las negociaciones...",
                 "sentiment_category": "POSITIVO",
                 "sentiment_score": 0.35917,
+                "translations": [
+                    {
+                        "id": 1,
+                        "title_tra": "Agreement between Banco Unión...",
+                        "detail_tra": "In July of last year...",
+                        "content_tra": "Negotiations are ongoing...",
+                        "language": "en"
+                    },
+                    {
+                        "id": 2,
+                        "title_tra": "Convenio entre Banco Unión...",
+                        "detail_tra": "En julio del año pasado...",
+                        "content_tra": "Las negociaciones están en curso...",
+                        "language": "es"
+                    }
+                ]
             }
         }
     },

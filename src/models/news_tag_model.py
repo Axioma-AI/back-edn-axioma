@@ -25,6 +25,18 @@ class TagsModel(Base):
     news_associations = relationship('NewsTagAssociation', back_populates='tag', overlaps="news,tags")
     news = relationship('NewsModel', secondary='news_tag', back_populates='tags', overlaps="tag_associations", viewonly=True)
 
+class NewsTranslationModel(Base):
+    __tablename__ = 'news_translation'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    news_id = Column(Integer, ForeignKey('news.id'), nullable=False)
+    title_tra = Column(Text, nullable=False)
+    detail_tra = Column(Text, nullable=False)
+    content_tra = Column(Text, nullable=False)
+    language = Column(Enum('en', 'es'), nullable=False)
+
+    news = relationship('NewsModel', back_populates='translations')
+
 class NewsModel(Base):
     __tablename__ = 'news'
 
@@ -44,6 +56,7 @@ class NewsModel(Base):
     tag_associations = relationship("NewsTagAssociation", back_populates="news", overlaps="tags")
     tags = relationship("TagsModel", secondary='news_tag', back_populates="news", overlaps="tag_associations", viewonly=True)
     favorites = relationship("FavoritesModel", back_populates="news", cascade="all, delete-orphan")
+    translations = relationship('NewsTranslationModel', back_populates='news')
 
     @staticmethod
     def from_bank_new(bank_new: BankNew) -> 'NewsModel':

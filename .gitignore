@@ -180,5 +180,5 @@ create_token_test.py
 
 *.ipynb
 
-send_alerts.py
+# send_alerts.py
 test_alert.py
