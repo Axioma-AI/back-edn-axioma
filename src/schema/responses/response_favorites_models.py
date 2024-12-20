@@ -37,6 +37,7 @@ class FavoritesResponseModel(BaseModel):
                         "content": "Las negociaciones...",
                         "sentiment_category": "POSITIVO",
                         "sentiment_score": 0.35917,
+                        "is_favorite": True,
                         "translations": [
                             {
                                 "id": 1,

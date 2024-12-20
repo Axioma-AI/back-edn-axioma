@@ -1,8 +1,11 @@
 import logging
+from typing import Optional
 from src.config.chromadb_config import get_chroma_db_client
+from src.models.favorites_model import FavoritesModel
 from src.models.news_tag_model import NewsModel
 from sqlalchemy.orm import Session, joinedload
 from src.config.db_config import get_db
+from src.utils.auth_utils import decode_and_sync_user
 from src.utils.logger import setup_logger
 
 # Configure the logger
@@ -101,23 +104,37 @@ class ArticleService:
             db.close()
             logger.debug("Database session closed after fetching all articles.")
     
-    async def get_article_by_id(self, article_id: int):
+    async def get_article_by_id(self, article_id: int, token: Optional[str] = None):
         db = next(get_db())
         try:
             logger.debug(f"Querying database for article with ID: {article_id}")
-            # Añadir joinedload para cargar la relación de traducciones
             article = (
                 db.query(NewsModel)
-                .options(joinedload(NewsModel.translations))  # Cargar la relación 'translations'
+                .options(joinedload(NewsModel.translations))
                 .filter(NewsModel.id == article_id)
                 .first()
             )
-            if article:
-                logger.info(f"Article with ID {article_id} found.")
-                return self.format_article(article)
-            else:
+            if not article:
                 logger.warning(f"No article found with ID: {article_id}")
                 return None
+            
+            formatted_article = self.format_article(article)
+
+            # Determinar si está en favoritos si se proporciona el token
+            if token:
+                user = decode_and_sync_user(token, db)
+                is_favorite = (
+                    db.query(FavoritesModel)
+                    .filter_by(user_id=user.id, news_id=article_id)
+                    .first()
+                    is not None
+                )
+                formatted_article["is_favorite"] = is_favorite
+            else:
+                formatted_article["is_favorite"] = None
+
+            return formatted_article
+
         except Exception as e:
             logger.error(f"Error while fetching article by ID: {e}")
             raise

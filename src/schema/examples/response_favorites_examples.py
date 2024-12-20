@@ -32,6 +32,7 @@ successful_get_favorites_response_example = {
                         "sentiment_category": "POSITIVO",
                         "sentiment_score": 0.35917,
                         "distance": None,
+                        "is_favorite": True,
                         "translations": [
                             {
                                 "id": 1,
@@ -62,6 +63,7 @@ successful_get_favorites_response_example = {
                         "sentiment_category": "NEUTRAL",
                         "sentiment_score": 0.0,
                         "distance": None,
+                        "is_favorite": True,
                         "translations": [
                             {
                                 "id": 3,

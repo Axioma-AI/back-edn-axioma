@@ -60,7 +60,7 @@ class FavoritesService:
                 .all()
             )
 
-            # Formatea las noticias
+            # Formatea las noticias y añade el campo `is_favorite: True`
             formatted_articles = [
                 {
                     "id": article.id,
@@ -74,6 +74,7 @@ class FavoritesService:
                     "content": article.content,
                     "sentiment_category": article.sentiment_category.name,
                     "sentiment_score": float(article.sentiment_score),
+                    "is_favorite": True,  # Campo fijo porque están en favoritos
                     "translations": [
                         {
                             "id": translation.id,

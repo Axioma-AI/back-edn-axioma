@@ -2,7 +2,7 @@ import csv
 import io
 import logging
 from fastapi import APIRouter, Query, HTTPException, Response, status
-from typing import List
+from typing import List, Optional
 from src.services.article_service import ArticleService
 from src.schema.responses.response_articles_models import ArticleResponseModel, NewsSourceResponseModel
 from src.schema.examples.response_articles_examples import articles_responses, article_by_id_responses, news_sources_responses
@@ -171,10 +171,10 @@ async def get_articles_by_source(
             description="Retrieve a single article by its ID",
             response_model=ArticleResponseModel,
             responses=article_by_id_responses)
-async def get_article_by_id(id: int):
+async def get_article_by_id(id: int, token: Optional[str] = None):
     try:
-        logger.debug(f"Fetching article with ID: {id}")
-        article = await article_service.get_article_by_id(id)
+        logger.debug(f"Fetching article with ID: {id} and token: {token}")
+        article = await article_service.get_article_by_id(id, token)
         if not article:
             logger.warning(f"Article with ID {id} not found.")
             raise HTTPException(

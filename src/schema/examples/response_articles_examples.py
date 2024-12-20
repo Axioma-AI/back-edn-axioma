@@ -75,6 +75,7 @@ internal_server_error_example = {
 }
 
 # Ejemplo para respuesta 200 - Respuesta exitosa
+# Ejemplo para respuesta 200 - Respuesta exitosa
 successful_response_example_by_id = {
     "description": "Successful Response - Article found by ID",
     "content": {
@@ -91,6 +92,7 @@ successful_response_example_by_id = {
                 "content": "Las negociaciones...",
                 "sentiment_category": "POSITIVO",
                 "sentiment_score": 0.35917,
+                "is_favorite": True,  # Nuevo campo incluido
                 "translations": [
                     {
                         "id": 1,
