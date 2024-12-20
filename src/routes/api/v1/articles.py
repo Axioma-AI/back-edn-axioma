@@ -14,14 +14,15 @@ logger = setup_logger(__name__, level=logging.INFO)
 router = APIRouter()
 article_service = ArticleService()
 
-@router.get("/articles", 
+@router.get("/articles",
             description="Retrieve a list of articles that match a keyword search within the article content",
             response_model=List[ArticleResponseModel],
             responses=articles_responses)
 async def get_articles(
     query: str = Query("", description="Keyword to search within articles (leave empty to retrieve the most recent articles)"),
     limit: int = Query(50, description="Maximum number of articles to return"),
-    sort: str = Query("publish_datetime", description="Field to sort results by (default is by date)")
+    sort: str = Query("publish_datetime", description="Field to sort results by (default is by date)"),
+    token: Optional[str] = Query(None, description="User authentication token to check favorites")
 ):
     try:
         query = query.lower()
@@ -29,10 +30,10 @@ async def get_articles(
         # Check if `query` is empty
         if not query:
             logger.debug(f"Empty query, fetching the most recent articles with limit={limit} sorted by {sort}.")
-            articles = await article_service.get_articles(limit, sort)
+            articles = await article_service.get_articles(limit, sort, token)
         else:
             logger.debug(f"Fetching articles with query='{query}', limit={limit}, sort='{sort}'")
-            articles = await article_service.search_by_text(query, limit, sort)
+            articles = await article_service.search_by_text(query, limit, sort, token)
         
         # Return the list of articles directly
         logger.info(f"Returning {len(articles)} articles.")
@@ -137,23 +138,22 @@ async def get_news_sources():
             detail="An unexpected error occurred. Please try again later.",
         )
 
-@router.get(
-    "/articles/by-source",
-    description="Retrieve a list of articles filtered by news source",
-    response_model=List[ArticleResponseModel],
-    responses=articles_responses,
-)
+@router.get("/articles/by-source",
+            description="Retrieve a list of articles filtered by news source",
+            response_model=List[ArticleResponseModel],
+            responses=articles_responses)
 async def get_articles_by_source(
     source: str = Query(..., description="News source to filter articles"),
     limit: int = Query(50, description="Maximum number of articles to return"),
     sort: str = Query("publish_datetime", description="Field to sort results by (default is by date)"),
+    token: Optional[str] = Query(None, description="User authentication token to check favorites")
 ):
     # Lógica del endpoint
     try:
         source = source.lower()
 
         logger.debug(f"Fetching articles with source='{source}', limit={limit}, sort='{sort}'.")
-        articles = await article_service.search_by_source(source, limit, sort)
+        articles = await article_service.search_by_source(source, limit, sort, token)
         
         logger.info(f"Returning {len(articles)} articles for source='{source}'.")
         return articles

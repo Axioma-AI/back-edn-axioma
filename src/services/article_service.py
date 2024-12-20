@@ -16,7 +16,7 @@ class ArticleService:
         self.collection = get_chroma_db_client()
         logger.debug("Chroma DB client initialized.")
 
-    async def get_articles(self, limit: int, sort: str = "publish_datetime"):
+    async def get_articles(self, limit: int, sort: str = "publish_datetime", token: Optional[str] = None):
         db = next(get_db())
         try:
             logger.debug(f"Fetching articles with limit={limit} sorted by {sort} in descending order.")
@@ -27,8 +27,24 @@ class ArticleService:
                 .limit(limit)
                 .all()
             )
-            logger.info(f"Fetched {len(articles)} articles sorted by {sort}.")
-            return [self.format_article(article) for article in articles]
+            logger.info(f"Obtained the limit of articles sorted by {sort} in descending order.")
+            if token:
+                logger.debug(f"Token provided. Decoding and checking favorites for the user.")
+                user = decode_and_sync_user(token, db)
+                favorite_ids = {fav.news_id for fav in db.query(FavoritesModel).filter_by(user_id=user.id).all()}
+                formatted_articles = [
+                    {**self.format_article(article), "is_favorite": article.id in favorite_ids}
+                    for article in articles
+                ]
+                logger.info(f"Processed favorites for user ID: {user.id}.")
+            else:
+                logger.debug(f"No token provided. Returning articles without favorite information.")
+                formatted_articles = [
+                    {**self.format_article(article), "is_favorite": None}
+                    for article in articles
+                ]
+            return formatted_articles
+
         except Exception as e:
             logger.error(f"Error while fetching articles: {e}")
             raise
@@ -157,20 +173,37 @@ class ArticleService:
             db.close()
             logger.debug("Database session closed after fetching unique news sources.")
 
-    async def search_by_source(self, source: str, limit: int, sort: str = "publish_datetime"):
+    async def search_by_source(self, source: str, limit: int, sort: str = "publish_datetime", token: Optional[str] = None):
         db = next(get_db())
         try:
-            logger.debug(f"Querying database for articles with news_source='{source}'.")
+            logger.debug(f"Querying database for articles with news_source='{source}', limit={limit}, sort={sort}.")
             articles = (
                 db.query(NewsModel)
-                .options(joinedload(NewsModel.translations))  # Cargar las traducciones
+                .options(joinedload(NewsModel.translations))  # Load translations
                 .filter(NewsModel.news_source.ilike(f"%{source}%"))
                 .order_by(getattr(NewsModel, sort).desc())
                 .limit(limit)
                 .all()
             )
-            logger.info(f"Fetched {len(articles)} articles for source='{source}'.")
-            return [self.format_article(article) for article in articles]
+            logger.info(f"Obtained the limit of articles for source='{source}'.")
+
+            if token:
+                logger.debug(f"Token provided. Decoding and checking favorites for the user.")
+                user = decode_and_sync_user(token, db)
+                favorite_ids = {fav.news_id for fav in db.query(FavoritesModel).filter_by(user_id=user.id).all()}
+                formatted_articles = [
+                    {**self.format_article(article), "is_favorite": article.id in favorite_ids}
+                    for article in articles
+                ]
+                logger.info(f"Processed favorites for user ID: {user.id}.")
+            else:
+                logger.debug(f"No token provided. Returning articles without favorite information.")
+                formatted_articles = [
+                    {**self.format_article(article), "is_favorite": None}
+                    for article in articles
+                ]
+            return formatted_articles
+
         except Exception as e:
             logger.error(f"Error while fetching articles by source: {e}")
             raise

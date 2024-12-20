@@ -19,6 +19,7 @@ successful_response_example = {
                     "sentiment_category": "POSITIVO",
                     "sentiment_score": 0.35917,
                     "distance": 0.5089,
+                    "is_favorite": None,
                     "translations": [
                         {
                             "id": 1,
