@@ -90,7 +90,7 @@ def main():
     """
     try:
         # Define la fecha específica para la búsqueda
-        prueba_fecha = date(2024, 11, 6)  # Usamos date() aquí
+        prueba_fecha = date(2024, 12, 20)  # Usamos date() aquí
         logger.info(f"Usando la fecha objetivo: {prueba_fecha}")
 
         # Obtener noticias más relevantes por categoría MUY_POSITIVO
