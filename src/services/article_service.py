@@ -52,13 +52,15 @@ class ArticleService:
             db.close()
             logger.debug("Database session closed after fetching articles.")
 
-    async def search_by_text(self, query: str, limit: int, sort: str = "publish_datetime"):
+    async def search_by_text(self, query: str, limit: int, sort: str = "publish_datetime", token: Optional[str] = None):
+        logger.debug(f"Performing vector search for query='{query}' with limit={limit}.")
         query_results = self.collection.query(query_texts=[query], n_results=limit)
         article_urls = query_results["ids"][0]
         distances = query_results["distances"][0]
 
         db = next(get_db())
         try:
+            logger.debug(f"Fetching articles from DB for {len(article_urls)} URLs.")
             articles = (
                 db.query(NewsModel)
                 .filter(NewsModel.source_link.in_(article_urls))
@@ -66,17 +68,34 @@ class ArticleService:
                 .all()
             )
             article_dict = {article.source_link: article for article in articles}
+
+            if token:
+                logger.debug(f"Token provided. Decoding and checking favorites for the user.")
+                user = decode_and_sync_user(token, db)
+                favorite_ids = {fav.news_id for fav in db.query(FavoritesModel).filter_by(user_id=user.id).all()}
+                logger.info(f"Retrieved {len(favorite_ids)} favorite IDs for user ID: {user.id}.")
+            else:
+                favorite_ids = set()
+                logger.debug(f"No token provided. Skipping favorite check.")
+
+            formatted_results = [
+                {
+                    **self.format_article(article_dict[article_url]),
+                    "distance": distance,
+                    "is_favorite": article_dict[article_url].id in favorite_ids if article_url in article_dict else None,
+                }
+                for article_url, distance in zip(article_urls, distances)
+                if article_url in article_dict
+            ]
+            logger.info(f"Returning {len(formatted_results)} articles with distance and favorite information.")
+            return formatted_results
+
+        except Exception as e:
+            logger.error(f"Error while performing vector search: {e}")
+            raise
         finally:
             db.close()
-
-        return [
-            {
-                **self.format_article(article_dict[article_url]),
-                "distance": distance,
-            }
-            for article_url, distance in zip(article_urls, distances)
-            if article_url in article_dict
-        ]
+            logger.debug("Database session closed after vector search.")
 
     def format_article(self, article):
         logger.debug(f"Formatting article with id={article.id}.")

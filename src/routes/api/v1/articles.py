@@ -26,16 +26,13 @@ async def get_articles(
 ):
     try:
         query = query.lower()
-
-        # Check if `query` is empty
         if not query:
             logger.debug(f"Empty query, fetching the most recent articles with limit={limit} sorted by {sort}.")
             articles = await article_service.get_articles(limit, sort, token)
         else:
             logger.debug(f"Fetching articles with query='{query}', limit={limit}, sort='{sort}'")
             articles = await article_service.search_by_text(query, limit, sort, token)
-        
-        # Return the list of articles directly
+
         logger.info(f"Returning {len(articles)} articles.")
         return articles
 
