@@ -20,11 +20,15 @@ logger.info("Firebase inicializado correctamente.")
 SessionLocal = sessionmaker(bind=engine)
 session = SessionLocal()
 
-def get_top_news_for_category(session, category, target_date):
+def get_top_news_for_category(session, category, target_date=None):
     """
     Obtiene la noticia con el mayor sentiment_score para una categoría específica,
     desde el inicio del día hasta la hora actual basada en target_date.
     """
+    # Si no se proporciona target_date, usamos la fecha de hoy
+    if target_date is None:
+        target_date = date.today()
+
     # Define el inicio del día (00:00:00) y la hora actual pero usando la fecha objetivo
     start_datetime = datetime.combine(target_date, time(0, 0, 0))  # 00:00:00
     now_time = datetime.now().time()  # Hora actual del sistema
@@ -84,13 +88,17 @@ def send_notification(news):
     except Exception as e:
         logger.error(f"❌ Error al enviar la notificación: {e}")
 
-def main():
+def main(prueba_fecha=None):
     """
     Revisa las noticias y envía notificaciones para las categorías MUY_POSITIVO y MUY_NEGATIVO.
     """
     try:
-        # Define la fecha específica para la búsqueda
-        prueba_fecha = date(2024, 12, 20)  # Usamos date() aquí
+        # Si no se proporciona una fecha específica, usamos la fecha de hoy
+        if prueba_fecha is None:
+            prueba_fecha = date.today()
+        elif not isinstance(prueba_fecha, date):
+            raise ValueError(f"El valor de prueba_fecha no es una fecha válida: {prueba_fecha}")
+
         logger.info(f"Usando la fecha objetivo: {prueba_fecha}")
 
         # Obtener noticias más relevantes por categoría MUY_POSITIVO
@@ -115,4 +123,7 @@ def main():
         session.close()
 
 if __name__ == "__main__":
-    main()
+    # Puedes pasar una fecha específica descomentando la línea siguiente:
+    # main(date(2024, 12, 22))
+    main()  # Usa la fecha actual si no se pasa un argumento
+    
