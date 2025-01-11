@@ -20,6 +20,7 @@ successful_response_example = {
                     "sentiment_score": 0.35917,
                     "distance": 0.5089,
                     "is_favorite": None,
+                    "category": "economia",
                     "translations": [
                         {
                             "id": 1,

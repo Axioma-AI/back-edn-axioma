@@ -31,7 +31,7 @@ async def get_articles(
             articles = await article_service.get_articles(limit, sort, token)
         else:
             logger.debug(f"Fetching articles with query='{query}', limit={limit}, sort='{sort}'")
-            articles = await article_service.search_by_text(query, limit, sort, token)
+            articles = await article_service.search_by_text_db(query, limit, sort, token)
 
         logger.info(f"Returning {len(articles)} articles.")
         return articles
@@ -46,6 +46,32 @@ async def get_articles(
             detail="An unexpected error occurred. Please try again later."
         )
 
+@router.get("/articles/by-email",
+            description="Retrieve a list of articles based on user interests associated with the provided email",
+            response_model=List[ArticleResponseModel],
+            responses=articles_responses)
+async def get_articles_by_email(
+    email: str = Query(..., description="Email to retrieve articles based on user interests"),
+    limit: int = Query(50, description="Maximum number of articles to return"),
+    sort: str = Query("publish_datetime", description="Field to sort results by (default is by date)")
+):
+    try:
+        logger.debug(f"Fetching articles for user email='{email}', limit={limit}, sort='{sort}'.")
+        articles = await article_service.get_articles_by_email(email, limit, sort)
+        logger.info(f"Returning {len(articles)} articles for email={email}.")
+        return articles
+
+    except HTTPException as http_exc:
+        logger.error(f"HTTP Exception: {http_exc.detail}")
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred. Please try again later."
+        )
+
+
 @router.get("/articles/excel", description="Retrieve all articles and return them in Excel (.xlsx) format")
 async def get_articles_excel(
     query: str = "",  # Optional parameter to filter articles by query
@@ -54,7 +80,7 @@ async def get_articles_excel(
     try:
         query = query.lower()
         # Fetch all articles matching the query, or all if query is empty
-        articles = await article_service.search_by_text(query, limit=10000) if query else await article_service.get_all_articles()
+        articles = await article_service.search_by_text_db(query, limit=10000) if query else await article_service.get_all_articles()
 
         # Create an in-memory Excel workbook
         workbook = Workbook()

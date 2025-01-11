@@ -26,6 +26,7 @@ class ArticleResponseModel(BaseModel):
     sentiment_score: float
     distance: Optional[float] = None
     is_favorite: Optional[bool] = None
+    category: Optional[str] = None
     translations: List[TranslationModel] = []
 
     class Config:
@@ -45,6 +46,7 @@ class ArticleResponseModel(BaseModel):
                 "sentiment_score": 0.35917,
                 "distance": 0.5089,
                 "is_favorite": True,
+                "category": "economia",
                 "translations": [
                     {
                         "id": 1,

@@ -1,10 +1,14 @@
 import logging
 from typing import Optional
+from fastapi import HTTPException
 from src.config.chromadb_config import get_chroma_db_client
+from src.models.categories_model import InterestsModel
 from src.models.favorites_model import FavoritesModel
 from src.models.news_tag_model import NewsModel
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import text
 from src.config.db_config import get_db
+from src.models.user_model import UserModel
 from src.utils.auth_utils import decode_and_sync_user
 from src.utils.logger import setup_logger
 
@@ -52,7 +56,7 @@ class ArticleService:
             db.close()
             logger.debug("Database session closed after fetching articles.")
 
-    async def search_by_text(self, query: str, limit: int, sort: str = "publish_datetime", token: Optional[str] = None):
+    async def search_by_text_vdb(self, query: str, limit: int, sort: str = "publish_datetime", token: Optional[str] = None):
         logger.debug(f"Performing vector search for query='{query}' with limit={limit}.")
         query_results = self.collection.query(query_texts=[query], n_results=limit)
         article_urls = query_results["ids"][0]
@@ -97,6 +101,51 @@ class ArticleService:
             db.close()
             logger.debug("Database session closed after vector search.")
 
+    async def search_by_text_db(self, query: str, limit: int, sort: str = "publish_datetime", token: Optional[str] = None):
+        logger.debug(f"Performing SQL search for query='{query}' with limit={limit}.")
+
+        db = next(get_db())
+        try:
+            logger.debug(f"Fetching articles from DB using MATCH and AGAINST for query='{query}'.")
+            
+            query = f'"{query}"'  # Esto envuelve el texto con comillas dobles
+
+            articles = db.query(
+                NewsModel,
+                text("MATCH(title, content) AGAINST(:query IN BOOLEAN MODE) AS distance")
+            ).filter(
+                text("MATCH(title, content) AGAINST(:query IN BOOLEAN MODE)")
+            ).params(query=query).order_by(getattr(NewsModel, sort).desc()).limit(limit).all()
+
+            article_dict = {article[0].id: article for article in articles}
+
+            if token:
+                logger.debug(f"Token provided. Decoding and checking favorites for the user.")
+                user = decode_and_sync_user(token, db)
+                favorite_ids = {fav.news_id for fav in db.query(FavoritesModel).filter_by(user_id=user.id).all()}
+                logger.info(f"Retrieved {len(favorite_ids)} favorite IDs for user ID: {user.id}.")
+            else:
+                favorite_ids = set()
+                logger.debug(f"No token provided. Skipping favorite check.")
+
+            formatted_results = [
+                {
+                    **self.format_article(article[0]),
+                    "distance": article[1],
+                    "is_favorite": article[0].id in favorite_ids if article[0].id in article_dict else None,
+                }
+                for article in articles
+            ]
+            logger.info(f"Returning {len(formatted_results)} articles from SQL search with distance.")
+            return formatted_results
+
+        except Exception as e:
+            logger.error(f"Error while performing SQL search: {e}")
+            raise
+        finally:
+            db.close()
+            logger.debug("Database session closed after SQL search.")
+
     def format_article(self, article):
         logger.debug(f"Formatting article with id={article.id}.")
         formatted_article = {
@@ -122,7 +171,7 @@ class ArticleService:
                 for translation in article.translations
             ],
         }
-        logger.debug(f"Formatted article with translations: {formatted_article}")
+        logger.debug(f"Formatted article with translations and with id={article.id}.")
         return formatted_article
 
     async def get_all_articles(self):
@@ -229,3 +278,39 @@ class ArticleService:
         finally:
             db.close()
             logger.debug("Database session closed after querying articles by source.")
+
+    # Método para obtener artículos basados en el correo del usuario
+    async def get_articles_by_email(self, email: str, limit: int, sort: str):
+        db = next(get_db())
+        try:
+            user = db.query(UserModel).filter(UserModel.email == email).first()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found.")
+
+            interests = db.query(InterestsModel).filter(InterestsModel.user_id == user.id).all()
+            if not interests:
+                raise HTTPException(status_code=404, detail="No interests found for the provided email.")
+
+            articles = []
+            for interest in interests:
+                query_results = self.collection.query(query_texts=[interest.keyword], n_results=limit)
+                article_urls = query_results["ids"][0]
+                keyword_articles = (
+                    db.query(NewsModel)
+                    .filter(NewsModel.source_link.in_(article_urls))
+                    .order_by(getattr(NewsModel, sort).desc())
+                    .limit(limit)
+                    .all()
+                )
+                for article in keyword_articles:
+                    formatted_article = self.format_article(article)
+                    formatted_article["category"] = interest.keyword
+                    articles.append(formatted_article)
+
+            return articles
+
+        except Exception as e:
+            logger.error(f"Error while fetching articles by email: {e}")
+            raise
+        finally:
+            db.close()
