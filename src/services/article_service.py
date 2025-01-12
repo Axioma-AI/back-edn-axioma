@@ -4,8 +4,9 @@ from fastapi import HTTPException
 from src.config.chromadb_config import get_chroma_db_client
 from src.models.categories_model import InterestsModel
 from src.models.favorites_model import FavoritesModel
+from src.schema.responses.response_articles_models import ArticleResponseModel, SourceModel, TranslationModel
 from src.models.news_tag_model import NewsModel
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 from sqlalchemy import text
 from src.config.db_config import get_db
 from src.models.user_model import UserModel
@@ -24,33 +25,59 @@ class ArticleService:
         db = next(get_db())
         try:
             logger.debug(f"Fetching articles with limit={limit} sorted by {sort} in descending order.")
+            
+            # Consulta con carga de relaciones
             articles = (
                 db.query(NewsModel)
-                .options(joinedload(NewsModel.translations))  # Load translations
+                .options(joinedload(NewsModel.translations))
                 .order_by(getattr(NewsModel, sort).desc())
                 .limit(limit)
                 .all()
             )
+
             logger.info(f"Obtained the limit of articles sorted by {sort} in descending order.")
+
+            favorite_ids = set()
             if token:
                 logger.debug(f"Token provided. Decoding and checking favorites for the user.")
                 user = decode_and_sync_user(token, db)
                 favorite_ids = {fav.news_id for fav in db.query(FavoritesModel).filter_by(user_id=user.id).all()}
-                formatted_articles = [
-                    {**self.format_article(article), "is_favorite": article.id in favorite_ids}
-                    for article in articles
-                ]
-                logger.info(f"Processed favorites for user ID: {user.id}.")
-            else:
-                logger.debug(f"No token provided. Returning articles without favorite information.")
-                formatted_articles = [
-                    {**self.format_article(article), "is_favorite": None}
-                    for article in articles
-                ]
+
+            formatted_articles = [
+                ArticleResponseModel(
+                    id=article.id,
+                    source=SourceModel(id=article.news_source, name=article.news_source),
+                    author=article.author,
+                    title=article.title,
+                    description=article.detail,
+                    url=article.source_link,
+                    urlToImage=article.image_url,
+                    publishedAt=article.publish_datetime.isoformat() if article.publish_datetime else "",
+                    content=article.content,
+                    sentiment_category=article.sentiment_category.name,
+                    sentiment_score=float(article.sentiment_score),
+                    is_favorite=article.id in favorite_ids if token else None,
+                    translations=[
+                        TranslationModel(
+                            id=translation.id,
+                            title_tra=translation.title_tra,
+                            detail_tra=translation.detail_tra,
+                            content_tra=translation.content_tra,
+                            language=translation.language
+                        )
+                        for translation in article.translations
+                    ]
+                )
+                for article in articles
+            ]
+
+            logger.info(f"Returning {len(formatted_articles)} articles formatted using ArticleResponseModel.")
             return formatted_articles
 
         except Exception as e:
-            logger.error(f"Error while fetching articles: {e}")
+            import traceback
+            error_details = traceback.format_exc()
+            logger.error(f"Error while fetching articles: {e}\n{error_details}")
             raise
         finally:
             db.close()
@@ -103,13 +130,11 @@ class ArticleService:
 
     async def search_by_text_db(self, query: str, limit: int, sort: str = "publish_datetime", token: Optional[str] = None):
         logger.debug(f"Performing SQL search for query='{query}' with limit={limit}.")
-
         db = next(get_db())
         try:
             logger.debug(f"Fetching articles from DB using MATCH and AGAINST for query='{query}'.")
-            
-            query = f'"{query}"'  # Esto envuelve el texto con comillas dobles
 
+            query = f'"{query}"'
             articles = db.query(
                 NewsModel,
                 text("MATCH(title, content) AGAINST(:query IN BOOLEAN MODE) AS distance")
@@ -117,30 +142,54 @@ class ArticleService:
                 text("MATCH(title, content) AGAINST(:query IN BOOLEAN MODE)")
             ).params(query=query).order_by(getattr(NewsModel, sort).desc()).limit(limit).all()
 
-            article_dict = {article[0].id: article for article in articles}
-
+            # Diccionario para seguimiento
+            article_dict = {article[0]: article for article in articles}
+            
+            favorite_ids = set()
+            # Gestión de favoritos
             if token:
                 logger.debug(f"Token provided. Decoding and checking favorites for the user.")
                 user = decode_and_sync_user(token, db)
                 favorite_ids = {fav.news_id for fav in db.query(FavoritesModel).filter_by(user_id=user.id).all()}
-                logger.info(f"Retrieved {len(favorite_ids)} favorite IDs for user ID: {user.id}.")
-            else:
-                favorite_ids = set()
-                logger.debug(f"No token provided. Skipping favorite check.")
 
+
+            # Utilización de ArticleResponseModel
             formatted_results = [
-                {
-                    **self.format_article(article[0]),
-                    "distance": article[1],
-                    "is_favorite": article[0].id in favorite_ids if article[0].id in article_dict else None,
-                }
+                ArticleResponseModel(
+                    id=article[0].id,
+                    source=SourceModel(id=article[0].news_source, name=article[0].news_source),
+                    author=article[0].author,
+                    title=article[0].title,
+                    description=article[0].detail,
+                    url=article[0].source_link,
+                    urlToImage=article[0].image_url,
+                    publishedAt=article[0].publish_datetime.isoformat() if article[0].publish_datetime else "",
+                    content=article[0].content,
+                    sentiment_category=article[0].sentiment_category.name,
+                    sentiment_score=float(article[0].sentiment_score),
+                    distance=article[1],
+                    is_favorite=article[0].id in favorite_ids if article[0].id in article_dict else None,
+                    translations=[
+                        TranslationModel(
+                            id=translation.id,
+                            title_tra=translation.title_tra,
+                            detail_tra=translation.detail_tra,
+                            content_tra=translation.content_tra,
+                            language=translation.language
+                        )
+                        for translation in article[0].translations
+                    ]
+                )
                 for article in articles
             ]
+
             logger.info(f"Returning {len(formatted_results)} articles from SQL search with distance.")
             return formatted_results
 
         except Exception as e:
-            logger.error(f"Error while performing SQL search: {e}")
+            import traceback
+            error_details = traceback.format_exc()
+            logger.error(f"Error while performing SQL search: {e}\n{error_details}")
             raise
         finally:
             db.close()
@@ -178,11 +227,44 @@ class ArticleService:
         db = next(get_db())
         try:
             logger.debug("Fetching all articles sorted by publish_datetime in descending order.")
+            
             articles = db.query(NewsModel).order_by(NewsModel.publish_datetime.desc()).all()
             logger.info(f"Fetched {len(articles)} articles.")
-            return [self.format_article(article) for article in articles]
+            
+            formatted_articles = [
+                ArticleResponseModel(
+                    id=article.id,
+                    source=SourceModel(id=article.news_source, name=article.news_source),
+                    author=article.author,
+                    title=article.title,
+                    description=article.detail,
+                    url=article.source_link,
+                    urlToImage=article.image_url,
+                    publishedAt=article.publish_datetime.isoformat() if article.publish_datetime else "",
+                    content=article.content,
+                    sentiment_category=article.sentiment_category.name,
+                    sentiment_score=float(article.sentiment_score),
+                    is_favorite=None,  # No se maneja token aquí, por lo tanto no se verifican favoritos
+                    translations=[
+                        TranslationModel(
+                            id=translation.id,
+                            title_tra=translation.title_tra,
+                            detail_tra=translation.detail_tra,
+                            content_tra=translation.content_tra,
+                            language=translation.language
+                        )
+                        for translation in article.translations
+                    ]
+                )
+                for article in articles
+            ]
+
+            return formatted_articles
+
         except Exception as e:
-            logger.error(f"Error while fetching all articles: {e}")
+            import traceback
+            error_details = traceback.format_exc()
+            logger.error(f"Error while fetching all articles: {e}\n{error_details}")
             raise
         finally:
             db.close()
@@ -192,19 +274,43 @@ class ArticleService:
         db = next(get_db())
         try:
             logger.debug(f"Querying database for article with ID: {article_id}")
+            
+            # Consulta con carga de traducciones
             article = (
                 db.query(NewsModel)
                 .options(joinedload(NewsModel.translations))
                 .filter(NewsModel.id == article_id)
                 .first()
             )
+            
             if not article:
                 logger.warning(f"No article found with ID: {article_id}")
                 return None
-            
-            formatted_article = self.format_article(article)
 
-            # Determinar si está en favoritos si se proporciona el token
+            formatted_article = ArticleResponseModel(
+                id=article.id,
+                source=SourceModel(id=article.news_source, name=article.news_source),
+                author=article.author,
+                title=article.title,
+                description=article.detail,
+                url=article.source_link,
+                urlToImage=article.image_url,
+                publishedAt=article.publish_datetime.isoformat() if article.publish_datetime else "",
+                content=article.content,
+                sentiment_category=article.sentiment_category.name,
+                sentiment_score=float(article.sentiment_score),
+                translations=[
+                    TranslationModel(
+                        id=translation.id,
+                        title_tra=translation.title_tra,
+                        detail_tra=translation.detail_tra,
+                        content_tra=translation.content_tra,
+                        language=translation.language
+                    )
+                    for translation in article.translations
+                ]
+            )
+
             if token:
                 user = decode_and_sync_user(token, db)
                 is_favorite = (
@@ -213,14 +319,16 @@ class ArticleService:
                     .first()
                     is not None
                 )
-                formatted_article["is_favorite"] = is_favorite
+                formatted_article.is_favorite = is_favorite
             else:
-                formatted_article["is_favorite"] = None
+                formatted_article.is_favorite = None
 
             return formatted_article
 
         except Exception as e:
-            logger.error(f"Error while fetching article by ID: {e}")
+            import traceback
+            error_details = traceback.format_exc()
+            logger.error(f"Error while fetching article by ID: {e}\n{error_details}")
             raise
         finally:
             db.close()
@@ -245,35 +353,61 @@ class ArticleService:
         db = next(get_db())
         try:
             logger.debug(f"Querying database for articles with news_source='{source}', limit={limit}, sort={sort}.")
+            
+            # Consulta con carga de traducciones
             articles = (
                 db.query(NewsModel)
-                .options(joinedload(NewsModel.translations))  # Load translations
+                .options(joinedload(NewsModel.translations))  # Manteniendo la carga de traducciones
                 .filter(NewsModel.news_source.ilike(f"%{source}%"))
                 .order_by(getattr(NewsModel, sort).desc())
                 .limit(limit)
                 .all()
             )
+
             logger.info(f"Obtained the limit of articles for source='{source}'.")
 
+            # Gestión de favoritos si se proporciona un token
+            favorite_ids = set()
             if token:
-                logger.debug(f"Token provided. Decoding and checking favorites for the user.")
+                logger.debug("Token provided. Decoding and checking favorites for the user.")
                 user = decode_and_sync_user(token, db)
                 favorite_ids = {fav.news_id for fav in db.query(FavoritesModel).filter_by(user_id=user.id).all()}
-                formatted_articles = [
-                    {**self.format_article(article), "is_favorite": article.id in favorite_ids}
-                    for article in articles
-                ]
-                logger.info(f"Processed favorites for user ID: {user.id}.")
-            else:
-                logger.debug(f"No token provided. Returning articles without favorite information.")
-                formatted_articles = [
-                    {**self.format_article(article), "is_favorite": None}
-                    for article in articles
-                ]
+
+            formatted_articles = [
+                ArticleResponseModel(
+                    id=article.id,
+                    source=SourceModel(id=article.news_source, name=article.news_source),
+                    author=article.author,
+                    title=article.title,
+                    description=article.detail,
+                    url=article.source_link,
+                    urlToImage=article.image_url,
+                    publishedAt=article.publish_datetime.isoformat() if article.publish_datetime else "",
+                    content=article.content,
+                    sentiment_category=article.sentiment_category.name,
+                    sentiment_score=float(article.sentiment_score),
+                    is_favorite=article.id in favorite_ids if token else None,
+                    translations=[
+                        TranslationModel(
+                            id=translation.id,
+                            title_tra=translation.title_tra,
+                            detail_tra=translation.detail_tra,
+                            content_tra=translation.content_tra,
+                            language=translation.language
+                        )
+                        for translation in article.translations
+                    ]
+                )
+                for article in articles
+            ]
+
+            logger.info(f"Returning {len(formatted_articles)} articles formatted using ArticleResponseModel.")
             return formatted_articles
 
         except Exception as e:
-            logger.error(f"Error while fetching articles by source: {e}")
+            import traceback
+            error_details = traceback.format_exc()
+            logger.error(f"Error while fetching articles by source: {e}\n{error_details}")
             raise
         finally:
             db.close()
@@ -283,34 +417,70 @@ class ArticleService:
     async def get_articles_by_email(self, email: str, limit: int, sort: str):
         db = next(get_db())
         try:
+            logger.debug(f"Fetching articles for email: {email} with limit={limit} sorted by {sort}.")
+            
+            # Verificar si el usuario existe
             user = db.query(UserModel).filter(UserModel.email == email).first()
             if not user:
                 raise HTTPException(status_code=404, detail="User not found.")
 
+            # Buscar los intereses del usuario
             interests = db.query(InterestsModel).filter(InterestsModel.user_id == user.id).all()
             if not interests:
                 raise HTTPException(status_code=404, detail="No interests found for the provided email.")
 
             articles = []
+
+            # Buscar artículos relacionados con los intereses del usuario
             for interest in interests:
                 query_results = self.collection.query(query_texts=[interest.keyword], n_results=limit)
                 article_urls = query_results["ids"][0]
                 keyword_articles = (
                     db.query(NewsModel)
+                    .options(joinedload(NewsModel.translations))
                     .filter(NewsModel.source_link.in_(article_urls))
                     .order_by(getattr(NewsModel, sort).desc())
                     .limit(limit)
                     .all()
                 )
-                for article in keyword_articles:
-                    formatted_article = self.format_article(article)
-                    formatted_article["category"] = interest.keyword
-                    articles.append(formatted_article)
 
+                for article in keyword_articles:
+                    articles.append(
+                        ArticleResponseModel(
+                            id=article.id,
+                            source=SourceModel(id=article.news_source, name=article.news_source),
+                            author=article.author,
+                            title=article.title,
+                            description=article.detail,
+                            url=article.source_link,
+                            urlToImage=article.image_url,
+                            publishedAt=article.publish_datetime.isoformat() if article.publish_datetime else "",
+                            content=article.content,
+                            sentiment_category=article.sentiment_category.name,
+                            sentiment_score=float(article.sentiment_score),
+                            is_favorite=None,  # No se está gestionando favoritos aquí
+                            translations=[
+                                TranslationModel(
+                                    id=translation.id,
+                                    title_tra=translation.title_tra,
+                                    detail_tra=translation.detail_tra,
+                                    content_tra=translation.content_tra,
+                                    language=translation.language
+                                )
+                                for translation in article.translations
+                            ],
+                            category=interest.keyword  # ✅ Agregado como categoría según el interés
+                        )
+                    )
+
+            logger.info(f"Returning {len(articles)} articles for the provided email.")
             return articles
 
         except Exception as e:
-            logger.error(f"Error while fetching articles by email: {e}")
+            import traceback
+            error_details = traceback.format_exc()
+            logger.error(f"Error while fetching articles by email: {e}\n{error_details}")
             raise
         finally:
             db.close()
+            logger.debug("Database session closed after querying articles by email.")
