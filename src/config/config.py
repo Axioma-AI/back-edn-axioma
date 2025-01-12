@@ -1,6 +1,6 @@
 import logging
 from functools import cache
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__, level=logging.DEBUG)
@@ -33,8 +33,7 @@ class Settings(BaseSettings):
     firebase_universe_domain: str
     firebase_database_url: str 
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env")
 
 @cache
 def get_settings():
