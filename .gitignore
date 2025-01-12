@@ -182,3 +182,5 @@ create_token_test.py
 
 # send_alerts.py
 test_alert.py
+
+*.zip
