@@ -65,23 +65,42 @@ def send_notification(news):
     try:
         logger.info(f"Preparando notificación: ID: {news.id}, Título: {news.title}")
 
-        # Configurar mensaje de Firebase
+        # Inicializar los campos de notificación y datos con los valores mínimos requeridos
+        data_payload = {
+            "id": str(news.id),
+            "title": news.title
+        }
+
+        # Construcción del objeto de notificación dinámicamente
+        notification_fields = {
+            "title": news.title
+        }
+
+        # Determinar presencia de campos
+        detail_present = bool(news.detail)
+        image_present = bool(news.image_url)
+
+        # Agregar `detail` solo si está presente
+        if detail_present:
+            notification_fields["body"] = news.detail[:200]
+            data_payload["detail"] = news.detail
+
+        # Agregar `image_url` solo si está presente
+        if image_present:
+            notification_fields["image"] = news.image_url
+            data_payload["image_url"] = news.image_url
+
+        # Único logger consolidado
+        logger.info(f"📦 Campos presentes: Título: ✅ | Detail: {'✅' if detail_present else '❌'} | Image URL: {'✅' if image_present else '❌'}")
+
+        # Configurar el mensaje con los campos validados
         message = messaging.Message(
-            notification=messaging.Notification(
-                title=news.title,
-                body=news.detail[:200],
-                image=news.image_url,
-            ),
-            data={
-                "id": str(news.id),
-                "title": news.title,
-                "detail": news.detail,
-                "image_url": news.image_url,
-            },
-            topic="news",
+            notification=messaging.Notification(**notification_fields),
+            data=data_payload,
+            topic="news"
         )
 
-        # Envía el mensaje
+        # Enviar la notificación
         response = messaging.send(message)
         logger.info(f"✅ Notificación enviada con éxito. ID: {response}")
 
