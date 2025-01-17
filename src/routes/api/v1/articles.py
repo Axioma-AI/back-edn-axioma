@@ -88,23 +88,43 @@ async def get_articles_excel(
         sheet.title = "Articles"
 
         # Add header row
-        headers = ["id", "source", "author", "title", "description", "url", "urlToImage", "publishedAt", "content", "sentiment_category", "sentiment_score"]
+        headers = [
+            "id", "source", "author", "title", "description", "url", "urlToImage", "publishedAt", "content",
+            "sentiment_category", "sentiment_score", "summary", "justification", "news_type_category", "news_type_justification",
+            "purpose_objective", "purpose_audience", "context_temporality", "context_location", "content_facts_vs_opinions",
+            "content_precision", "content_impartiality", "structure_clarity", "structure_key_data", "tone_neutrality", "tone_ethics"
+        ]
         sheet.append(headers)
 
         # Add article rows
         for article in articles:
             sheet.append([
-                article["id"],
-                article["source"]["name"],
-                article.get("author", ""),
-                article["title"],
-                article.get("description", ""),
-                article["url"],
-                article.get("urlToImage", ""),
-                article.get("publishedAt", ""),
-                article.get("content", ""),
-                article["sentiment_category"],
-                article["sentiment_score"]
+                article.id,
+                article.source.name,
+                article.author or "",
+                article.title,
+                article.description or "",
+                article.url,
+                article.urlToImage or "",
+                article.publishedAt or "",
+                article.content or "",
+                article.sentiment_category,
+                article.sentiment_score,
+                article.summary or "",
+                article.justification or "",
+                article.news_type_category or "",
+                article.news_type_justification or "",
+                article.purpose_objective or "",
+                article.purpose_audience or "",
+                article.context_temporality or "",
+                article.context_location or "",
+                article.content_facts_vs_opinions or "",
+                article.content_precision or "",
+                article.content_impartiality or "",
+                article.structure_clarity or "",
+                article.structure_key_data or "",
+                article.tone_neutrality or "",
+                article.tone_ethics or ""
             ])
 
         # Save workbook to an in-memory buffer
