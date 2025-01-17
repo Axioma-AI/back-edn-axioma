@@ -114,6 +114,8 @@ class NewsCharactersModel(Base):
     character_description = Column(Text(collation='utf8mb4_unicode_ci'), nullable=False)
 
     news = relationship('NewsModel', back_populates='characters')
+    translations = relationship('NewsTransCharactersModel', back_populates='news_character', cascade="all, delete-orphan")
+
 
 class NewsTransCharactersModel(Base):
     __tablename__ = 'news_trans_characters'
@@ -123,4 +125,4 @@ class NewsTransCharactersModel(Base):
     character_description_tra = Column(Text, nullable=False)
     language = Column(Enum('en', 'es'), nullable=False)
 
-    news_character = relationship('NewsCharactersModel')
+    news_character = relationship('NewsCharactersModel', back_populates='translations')
