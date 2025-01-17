@@ -31,7 +31,21 @@ successful_get_favorites_response_example = {
                         "content": "Las negociaciones...",
                         "sentiment_category": "POSITIVO",
                         "sentiment_score": 0.35917,
-                        "distance": None,
+                        "summary": "Resumen del artículo...",
+                        "justification": "Justificación del contenido...",
+                        "news_type_category": "Económico",
+                        "news_type_justification": "Justificación económica...",
+                        "purpose_objective": "Informar al público...",
+                        "purpose_audience": "Empresas y público general",
+                        "context_temporality": "Actualidad",
+                        "context_location": "Bolivia",
+                        "content_facts_vs_opinions": "Hechos",
+                        "content_precision": "Alta",
+                        "content_impartiality": "Neutral",
+                        "structure_clarity": "Clara",
+                        "structure_key_data": "Completa",
+                        "tone_neutrality": "Neutral",
+                        "tone_ethics": "Ético",
                         "is_favorite": True,
                         "translations": [
                             {
@@ -39,38 +53,41 @@ successful_get_favorites_response_example = {
                                 "title_tra": "Agreement between Banco Unión and ICBC of China...",
                                 "detail_tra": "In July of last year...",
                                 "content_tra": "Negotiations to finalize the agreement...",
+                                "summary_tra": "Summary in English...",
+                                "justification_tra": "Justification in English...",
+                                "news_type_category_tra": "Economic",
+                                "news_type_justification_tra": "Economic justification...",
+                                "purpose_objective_tra": "Inform the public...",
+                                "purpose_audience_tra": "Companies and general public",
+                                "context_temporality_tra": "Current",
+                                "context_location_tra": "Bolivia",
+                                "content_facts_vs_opinions_tra": "Facts",
+                                "content_precision_tra": "High",
+                                "content_impartiality_tra": "Neutral",
+                                "structure_clarity_tra": "Clear",
+                                "structure_key_data_tra": "Complete",
+                                "tone_neutrality_tra": "Neutral",
+                                "tone_ethics_tra": "Ethical",
                                 "language": "en"
-                            },
-                            {
-                                "id": 2,
-                                "title_tra": "Convenio entre Banco Unión e ICBC de China...",
-                                "detail_tra": "En julio del año pasado...",
-                                "content_tra": "Las negociaciones para establecer un acuerdo...",
-                                "language": "es"
                             }
-                        ]
-                    },
-                    {
-                        "id": 6846,
-                        "source": {"id": "El Deber", "name": "El Deber"},
-                        "author": "Carlos Gustavo",
-                        "title": "El Gobierno anuncia que el BCB emitirá bonos soberanos en yuanes",
-                        "description": "El ministro de Economía, Marcelo Montenegro, informó que el Banco Central de Bolivia emitirá bonos soberanos en yuanes...",
-                        "url": "https://eldeber.com.bo/economia/El-Gobierno-anuncia-que-el-BCB-emitira-bonos-soberanos-en-yuanes-20240102-0063.html",
-                        "urlToImage": "https://eldeber.com.bo/export/sites/eldeber/img/2024/01/02/20240102-0063.jpg_1359985865.jpg",
-                        "publishedAt": "2024-01-02T15:21:00",
-                        "content": "El ministro de Economía, Marcelo Montenegro, informó...",
-                        "sentiment_category": "NEUTRAL",
-                        "sentiment_score": 0.0,
-                        "distance": None,
-                        "is_favorite": True,
-                        "translations": [
+                        ],
+                        "characters": [
                             {
-                                "id": 3,
-                                "title_tra": "Government announces BCB to issue sovereign bonds in yuan",
-                                "detail_tra": "The Minister of Economy, Marcelo Montenegro...",
-                                "content_tra": "The Central Bank of Bolivia plans to issue yuan bonds...",
-                                "language": "en"
+                                "id": 1,
+                                "character_name": "Carlos Mesa",
+                                "character_description": "Former president of Bolivia...",
+                                "translations": [
+                                    {
+                                        "id": 1,
+                                        "character_description_tra": "Ex-presidente de Bolivia...",
+                                        "language": "es"
+                                    },
+                                    {
+                                        "id": 2,
+                                        "character_description_tra": "Former president of Bolivia...",
+                                        "language": "en"
+                                    }
+                                ]
                             }
                         ]
                     }
@@ -79,7 +96,6 @@ successful_get_favorites_response_example = {
         }
     },
 }
-
 
 # Example for a successful DELETE response
 successful_delete_favorite_response_example = {
