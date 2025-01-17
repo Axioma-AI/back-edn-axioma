@@ -18,23 +18,60 @@ successful_response_example = {
                     "content": "Las negociaciones...",
                     "sentiment_category": "POSITIVO",
                     "sentiment_score": 0.35917,
+                    "summary": "Negociaciones avanzadas entre bancos.",
+                    "justification": "Acuerdo estratégico entre instituciones.",
+                    "news_type_category": "Economía",
+                    "news_type_justification": "Promoción del yuan en el mercado.",
+                    "purpose_objective": "Fortalecer relaciones comerciales.",
+                    "purpose_audience": "Empresas e instituciones financieras.",
+                    "context_temporality": "Actual",
+                    "context_location": "Bolivia y China",
+                    "content_facts_vs_opinions": "Predominio de hechos.",
+                    "content_precision": "Alta",
+                    "content_impartiality": "Neutral",
+                    "structure_clarity": "Ordenada",
+                    "structure_key_data": "Datos clave presentes.",
+                    "tone_neutrality": "Neutral",
+                    "tone_ethics": "Ético",
                     "distance": 0.5089,
                     "is_favorite": None,
-                    "category": "economia",
+                    "category": "economía",
                     "translations": [
                         {
                             "id": 1,
                             "title_tra": "Agreement between Banco Unión...",
                             "detail_tra": "In July of last year...",
                             "content_tra": "Negotiations are ongoing...",
+                            "summary_tra": "Advanced negotiations between banks.",
+                            "justification_tra": "Strategic agreement between institutions.",
+                            "news_type_category_tra": "Economy",
+                            "news_type_justification_tra": "Promotion of the yuan in the market.",
+                            "purpose_objective_tra": "Strengthen trade relations.",
+                            "purpose_audience_tra": "Companies and financial institutions.",
+                            "context_temporality_tra": "Current",
+                            "context_location_tra": "Bolivia and China",
+                            "content_facts_vs_opinions_tra": "Fact-dominant.",
+                            "content_precision_tra": "High",
+                            "content_impartiality_tra": "Neutral",
+                            "structure_clarity_tra": "Organized",
+                            "structure_key_data_tra": "Key data included.",
+                            "tone_neutrality_tra": "Neutral",
+                            "tone_ethics_tra": "Ethical",
                             "language": "en"
-                        },
+                        }
+                    ],
+                    "characters": [
                         {
-                            "id": 2,
-                            "title_tra": "Convenio entre Banco Unión...",
-                            "detail_tra": "En julio del año pasado...",
-                            "content_tra": "Las negociaciones están en curso...",
-                            "language": "es"
+                            "id": 1,
+                            "character_name": "John Doe",
+                            "character_description": "A key figure in the article...",
+                            "translations": [
+                                {
+                                    "id": 1,
+                                    "character_description_tra": "Un personaje clave en el artículo...",
+                                    "language": "es"
+                                }
+                            ]
                         }
                     ]
                 }
@@ -77,7 +114,6 @@ internal_server_error_example = {
 }
 
 # Ejemplo para respuesta 200 - Respuesta exitosa
-# Ejemplo para respuesta 200 - Respuesta exitosa
 successful_response_example_by_id = {
     "description": "Successful Response - Article found by ID",
     "content": {
@@ -94,21 +130,58 @@ successful_response_example_by_id = {
                 "content": "Las negociaciones...",
                 "sentiment_category": "POSITIVO",
                 "sentiment_score": 0.35917,
-                "is_favorite": True,  # Nuevo campo incluido
+                "summary": "Negociaciones avanzadas entre bancos.",
+                "justification": "Acuerdo estratégico entre instituciones.",
+                "news_type_category": "Economía",
+                "news_type_justification": "Promoción del yuan en el mercado.",
+                "purpose_objective": "Fortalecer relaciones comerciales.",
+                "purpose_audience": "Empresas e instituciones financieras.",
+                "context_temporality": "Actual",
+                "context_location": "Bolivia y China",
+                "content_facts_vs_opinions": "Predominio de hechos.",
+                "content_precision": "Alta",
+                "content_impartiality": "Neutral",
+                "structure_clarity": "Ordenada",
+                "structure_key_data": "Datos clave presentes.",
+                "tone_neutrality": "Neutral",
+                "tone_ethics": "Ético",
+                "is_favorite": True,
                 "translations": [
                     {
                         "id": 1,
                         "title_tra": "Agreement between Banco Unión...",
                         "detail_tra": "In July of last year...",
                         "content_tra": "Negotiations are ongoing...",
+                        "summary_tra": "Advanced negotiations between banks.",
+                        "justification_tra": "Strategic agreement between institutions.",
+                        "news_type_category_tra": "Economy",
+                        "news_type_justification_tra": "Promotion of the yuan in the market.",
+                        "purpose_objective_tra": "Strengthen trade relations.",
+                        "purpose_audience_tra": "Companies and financial institutions.",
+                        "context_temporality_tra": "Current",
+                        "context_location_tra": "Bolivia and China",
+                        "content_facts_vs_opinions_tra": "Fact-dominant.",
+                        "content_precision_tra": "High",
+                        "content_impartiality_tra": "Neutral",
+                        "structure_clarity_tra": "Organized",
+                        "structure_key_data_tra": "Key data included.",
+                        "tone_neutrality_tra": "Neutral",
+                        "tone_ethics_tra": "Ethical",
                         "language": "en"
-                    },
+                    }
+                ],
+                "characters": [
                     {
-                        "id": 2,
-                        "title_tra": "Convenio entre Banco Unión...",
-                        "detail_tra": "En julio del año pasado...",
-                        "content_tra": "Las negociaciones están en curso...",
-                        "language": "es"
+                        "id": 1,
+                        "character_name": "John Doe",
+                        "character_description": "A key figure in the article...",
+                        "translations": [
+                            {
+                                "id": 1,
+                                "character_description_tra": "Un personaje clave en el artículo...",
+                                "language": "es"
+                            }
+                        ]
                     }
                 ]
             }
