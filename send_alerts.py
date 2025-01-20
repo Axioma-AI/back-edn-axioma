@@ -27,9 +27,7 @@ def get_top_news_for_category(session, category, target_date=None):
 
     start_datetime = datetime.combine(target_date, time(0, 0, 0))
     now_time = datetime.now().time()
-    end_datetime = datetime.combine(
-        target_date, now_time
-    )
+    end_datetime = datetime.combine(target_date, now_time)
 
     logger.info(
         f"Buscando noticias para la categoría {category} entre {start_datetime} y {end_datetime}."
@@ -64,8 +62,14 @@ def send_notification(news):
         return
 
     try:
-        title = news.title.strip() if news.title and news.title.strip() else f"Hoy {date.today().isoformat()}"
-        title_type = "Original ✅" if news.title and news.title.strip() else "Predeterminado 🟡"
+        title = (
+            news.title.strip()
+            if news.title and news.title.strip()
+            else f"Hoy {date.today().isoformat()}"
+        )
+        title_type = (
+            "Original ✅" if news.title and news.title.strip() else "Predeterminado 🟡"
+        )
 
         logger.info(f"Preparando notificación: ID: {news.id}, Título: {title}")
 
