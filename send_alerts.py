@@ -64,11 +64,13 @@ def send_notification(news):
         return
 
     try:
-        logger.info(f"Preparando notificación: ID: {news.id}, Título: {news.title}")
+        title = news.title.strip() if news.title and news.title.strip() else f"Hoy {date.today().isoformat()}"
+        title_type = "Original ✅" if news.title and news.title.strip() else "Predeterminado 🟡"
 
-        data_payload = {"id": str(news.id), "title": news.title}
+        logger.info(f"Preparando notificación: ID: {news.id}, Título: {title}")
 
-        notification_fields = {"title": news.title}
+        data_payload = {"id": str(news.id), "title": title}
+        notification_fields = {"title": title}
 
         detail_present = bool(news.detail)
         image_present = bool(news.image_url)
@@ -82,7 +84,7 @@ def send_notification(news):
             data_payload["image_url"] = news.image_url
 
         logger.info(
-            f"📦 Campos presentes: Título: ✅ | Detail: {'✅' if detail_present else '❌'} | Image URL: {'✅' if image_present else '❌'}"
+            f"📦 Campos presentes: Título: {title_type} | Detail: {'✅' if detail_present else '❌'} | Image URL: {'✅' if image_present else '❌'}"
         )
 
         message = messaging.Message(
