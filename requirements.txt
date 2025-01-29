@@ -1,5 +1,5 @@
-chroma-hnswlib==0.7.3
-chromadb==0.5.3
+# chroma-hnswlib==0.7.3
+# chromadb==0.5.3
 coloredlogs==15.0.1
 fastapi==0.115.0
 fastapi-cache2==0.2.2
