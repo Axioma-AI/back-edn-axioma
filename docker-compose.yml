@@ -2,11 +2,11 @@ services:
   # Servicio del backend
   backend:
     build:
-      context: . # Ruta al directorio donde se encuentra el Dockerfile
-      dockerfile: Dockerfile.backend # Nombre del Dockerfile
+      context: .
+      dockerfile: Dockerfile.backend
     container_name: fastapi_app
     ports:
-      - "80:50001" # Mapea el puerto 8000 del contenedor al puerto 8000 local
+      - "51001:51001"
     environment:
       SERVICE_NAME: ${SERVICE_NAME}
       K_REVISION: ${K_REVISION}
@@ -30,18 +30,3 @@ services:
       FIREBASE_CLIENT_X509_CERT_URL: ${FIREBASE_CLIENT_X509_CERT_URL}
       FIREBASE_UNIVERSE_DOMAIN: ${FIREBASE_UNIVERSE_DOMAIN}
       FIREBASE_DATABASE_URL: ${FIREBASE_DATABASE_URL}
-
-#     # networks:
-#     #   sorteador:
-#     #     ipv4_address: ${HOST_BACKEND} # Utiliza la variable de entorno para definir la IP del contenedor app
-
-# # Definición de redes personalizadas
-# networks:
-#   sorteador:
-#     # driver: ${NETWORK_DRIVER}  # Utiliza la variable de entorno NETWORK_DRIVER
-#     # driver_opts:
-#     #   parent: ${PARENT}  # Utiliza la variable de entorno PARENT
-#     ipam:
-#       config:
-#         - subnet: ${SUBNET}  # Utiliza la variable de entorno SUBNET
-#           gateway: ${GATEWAY}  # Utiliza la variable de entorno GATEWAY
