@@ -4,16 +4,16 @@ import logging
 from src.models.news_tag_model import NewsModel
 from src.schema.responses.response_analysis_models import AnalysisResponseModel, NewsHistoryModel, NewsPerceptionModel, GeneralPerceptionModel
 from src.utils.logger import setup_logger
-from src.config.chromadb_config import get_chroma_db_client
+# from src.config.chromadb_config import get_chroma_db_client
 from src.config.db_config import get_db
 from sqlalchemy.orm import Session
 
 logger = setup_logger(__name__, level=logging.DEBUG)
 
 class AnalysisService:
-    def __init__(self):
-        self.collection = get_chroma_db_client()
-        logger.debug("Chroma DB client initialized.")
+    # def __init__(self):
+        # self.collection = get_chroma_db_client()
+        # logger.debug("Chroma DB client initialized.")
 
     def search_by_text_analysis(self, query: str, interval: int, unit: str) -> AnalysisResponseModel:
         # Calcular el rango de fechas

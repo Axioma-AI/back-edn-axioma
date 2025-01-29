@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 from fastapi import HTTPException
-from src.config.chromadb_config import get_chroma_db_client
+# from src.config.chromadb_config import get_chroma_db_client
 from src.models.categories_model import InterestsModel
 from src.models.favorites_model import FavoritesModel
 from src.schema.responses.response_articles_models import ArticleResponseModel, NewsCharacterModel, NewsCharacterTranslationModel, SourceModel, TranslationModel
@@ -17,9 +17,9 @@ from src.utils.logger import setup_logger
 logger = setup_logger(__name__, level=logging.DEBUG)
 
 class ArticleService:
-    def __init__(self):
-        self.collection = get_chroma_db_client()
-        logger.debug("Chroma DB client initialized.")
+    # def __init__(self):
+        # self.collection = get_chroma_db_client()
+        # logger.debug("Chroma DB client initialized.")
 
     async def get_articles(self, limit: int, sort: str = "publish_datetime", token: Optional[str] = None):
         db = next(get_db())

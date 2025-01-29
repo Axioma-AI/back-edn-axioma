@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     db_port: int = 3306
     db_name: str = "axioma"
 
-    vector_database_host: str = "localhost"
-    vector_database_port: int = 8000
+    # vector_database_host: str = "localhost"
+    # vector_database_port: int = 8000
 
     firebase_type: str
     firebase_project_id: str
