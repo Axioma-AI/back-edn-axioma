@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Exponer el puerto 50001
-EXPOSE 50001
+EXPOSE 51001
 
 # Comando para correr la aplicación con uvicorn
-CMD ["uvicorn", "app:app", "--reload", "--host", "0.0.0.0", "--port", "50001"]
+CMD ["uvicorn", "app:app", "--reload", "--host", "0.0.0.0", "--port", "51001"]
