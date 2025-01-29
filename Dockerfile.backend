@@ -1,27 +1,20 @@
-# Etapa de construcción: utilizar una imagen más ligera con herramientas necesarias
-FROM python:3.11.5-slim AS builder
+# Usar la imagen de Python 3.11.5
+FROM python:3.11.5-slim
 
 # Establecer el directorio de trabajo
 WORKDIR /app
 
-# Copiar y descargar dependencias en un entorno aislado
+# Copiar los archivos de requirements para instalar las dependencias
 COPY requirements.txt .
+
+# Instalar las dependencias
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Etapa de producción: usar una imagen aún más ligera
-FROM python:3.11.5-alpine
-
-# Establecer el directorio de trabajo
-WORKDIR /app
-
-# Copiar la aplicación y sus archivos necesarios
+# Copiar todo el contenido de la aplicación al contenedor
 COPY . .
 
-# Copiar las dependencias desde la imagen de compilación
-COPY --from=builder /usr/local /usr/local
+# Exponer el puerto 50001
+EXPOSE 50001
 
-# Exponer el puerto fijo (sin .env)
-EXPOSE 51001
-
-# Comando para ejecutar la aplicación
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "51001"]
+# Comando para correr la aplicación con uvicorn
+CMD ["uvicorn", "app:app", "--reload", "--host", "0.0.0.0", "--port", "50001"]
