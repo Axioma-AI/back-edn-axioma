@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
 import logging
+from sqlalchemy import text
 from src.models.news_tag_model import NewsModel
 from src.schema.responses.response_analysis_models import AnalysisResponseModel, NewsHistoryModel, NewsPerceptionModel, GeneralPerceptionModel
 from src.utils.logger import setup_logger
@@ -29,71 +30,63 @@ class AnalysisService:
             start_date = end_date - timedelta(days=365 * interval)
         logger.debug(f"Date range calculated: start_date={start_date}, end_date={end_date}")
 
-        # Realizar la búsqueda de texto en Chroma DB
-        logger.info(f"Performing text search in Chroma DB for query: '{query}'")
-        query_results = self.collection.query(query_texts=[query], n_results=100)
-        article_urls = query_results["ids"][0]
-        distances = query_results["distances"][0]
-        logger.debug(f"Text search completed. Found {len(article_urls)} articles.")
-
-        # Consultar los artículos de la base de datos basados en las URLs
+        # Realizar la búsqueda en la base de datos
+        logger.info(f"Performing text search in database for query: '{query}'")
         db = next(get_db())
         try:
-            logger.info("Fetching articles from database based on URLs and date range.")
-            news_records = db.query(NewsModel).filter(
-                NewsModel.source_link.in_(article_urls),
+            query = f'"{query}"'
+            articles = db.query(
+                NewsModel,
+                text("MATCH(title, content) AGAINST(:query IN BOOLEAN MODE) AS distance")
+            ).filter(
+                text("MATCH(title, content) AGAINST(:query IN BOOLEAN MODE)"),
                 NewsModel.publish_datetime >= start_date,
                 NewsModel.publish_datetime <= end_date
-            ).all()
-            logger.debug(f"Fetched {len(news_records)} articles from database.")
+            ).params(query=query).order_by(getattr(NewsModel, "publish_datetime").desc()).limit(100).all()
+            logger.debug(f"Text search completed. Found {len(articles)} articles.")
         finally:
             db.close()
             logger.debug("Database session closed after fetching articles for analysis.")
 
-        # Recopilar todos los puntajes para calcular el promedio general
+        # Recopilar puntajes para promedios
         average_scores = defaultdict(list)
-        logger.debug(f"General average sentiment score calculated: {average_scores}")
-
-        # Agrupar las noticias por fecha para `news_history`
         sources_history = defaultdict(int)
 
-        for news in news_records:
-            date = news.publish_datetime.date()
-            sources_history[date] += 1  # Contar el número de noticias por fecha
+        for article, distance in articles:
+            date = article.publish_datetime.date()
+            sources_history[date] += 1
+            average_scores[date].append(float(article.sentiment_score))
 
-            # Clasificar en positivo o negativo basado en el promedio general
-            average_scores[date].append(float(news.sentiment_score))
-
-        # Construir `news_history` como lista de noticias por fecha sin segmentación
+        # Construir `news_history`
         news_history_list = [
             NewsHistoryModel(date=str(date), news_count=count)
             for date, count in sorted(sources_history.items())
         ]
 
-        # Construir `news_perception` para todas las fechas combinadas con las nuevas reglas
+        # Construir `news_perception`
         news_perception_list = [
             NewsPerceptionModel(
                 date=str(date),
-                positive_sentiment_score=(1 + (sum(average_scores[date]) / len(average_scores[date])) if average_scores[date] else 0.5) / 2,
-                negative_sentiment_score=(1 - (sum(average_scores[date]) / len(average_scores[date])) if average_scores[date] else 0.5) / 2
+                positive_sentiment_score=(1 + (sum(scores) / len(scores)) if scores else 0.5) / 2,
+                negative_sentiment_score=(1 - (sum(scores) / len(scores)) if scores else 0.5) / 2
             )
-            for date in sorted(set(average_scores.keys()))
+            for date, scores in average_scores.items()
         ]
         scores = [score for scores in average_scores.values() for score in scores]
 
-        # Calcular `general_perception` como promedio de todos los puntajes clasificados, asegurando que la suma sea 1
+        # Calcular `general_perception`
         general_perception = GeneralPerceptionModel(
             positive_sentiment_score=(1 + (sum(scores) / len(scores)) if scores else 0.5) / 2,
             negative_sentiment_score=(1 - (sum(scores) / len(scores)) if scores else 0.5) / 2
         )
 
-        # Construir la respuesta final como instancia de `AnalysisResponseModel`
+        # Construir la respuesta final
         response = AnalysisResponseModel(
             source_query=query,
             news_history=news_history_list,
             news_perception=news_perception_list,
             news_count=sum(sources_history.values()),
-            sources_count=len(set(article.news_source for article in news_records)),
+            sources_count=len(set(article.news_source for article, _ in articles)),
             historic_interval=interval,
             historic_interval_unit=unit,
             general_perception=general_perception
