@@ -1,6 +1,8 @@
 import logging
 from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from contextlib import contextmanager
 from src.config.config import get_settings
 from src.utils.logger import setup_logger
 
@@ -8,7 +10,7 @@ logger = setup_logger(__name__, level=logging.DEBUG)
 
 _SETTINGS = get_settings()
 
-DATABASE_URL = f"mysql+mysqlconnector://{_SETTINGS.db_user}:{_SETTINGS.db_password}@{_SETTINGS.db_host}:{_SETTINGS.db_port}/{_SETTINGS.db_name}"
+SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{_SETTINGS.db_user}:{_SETTINGS.db_password}@{_SETTINGS.db_host}:{_SETTINGS.db_port}/{_SETTINGS.db_name}"
 
 # Obteniendo el motor de la base de datos
 if not _SETTINGS.db_user or not _SETTINGS.db_password or not _SETTINGS.db_host or not _SETTINGS.db_port or not _SETTINGS.db_name:
@@ -16,8 +18,10 @@ if not _SETTINGS.db_user or not _SETTINGS.db_password or not _SETTINGS.db_host o
 else:
     logger.info('Variables de entorno de la base de datos configuradas')
 
-engine = create_engine(DATABASE_URL, echo=False)
-SessionLocal = sessionmaker(autocommit=False, autoflush=True, bind=engine)
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
 
 def get_db():
     db = SessionLocal()
@@ -25,6 +29,18 @@ def get_db():
         yield db
     finally:
         db.close()
+
+@contextmanager
+def get_db_session():
+    """Context manager for database sessions"""
+    session = SessionLocal()
+    try:
+        yield session
+    except Exception as e:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 if __name__ == "__main__":
     try:

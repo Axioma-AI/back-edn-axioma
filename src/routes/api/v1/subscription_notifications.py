@@ -1,0 +1,1 @@
+# This file can be deleted entirely as we're now using direct Pub/Sub integration 

@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     firebase_client_x509_cert_url: str
     firebase_universe_domain: str
     firebase_database_url: str 
+    
+    # App Store settings (for future use)
+    app_store_shared_secret: str = ""
+    app_store_environment: str = "sandbox"  # or "production"
+    
+    # Google Play package name
+    google_play_package_name: str = "com.axioma.app"
+
+    # Add these to your Settings class
+    pubsub_topic_name: str = "play-subscription-notifications-axioma"
+    pubsub_subscription_name: str = "play-subscription-notifications-axioma-sub"
 
     model_config = SettingsConfigDict(env_file=".env")
 

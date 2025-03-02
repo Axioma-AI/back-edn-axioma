@@ -16,6 +16,7 @@ class UserModel(Base):
     firebase_tokens = relationship("FirebaseTokenModel", back_populates="user", cascade="all, delete-orphan")
     interests = relationship("InterestsModel", back_populates="user", cascade="all, delete-orphan")
     favorites = relationship("FavoritesModel", back_populates="user", cascade="all, delete-orphan")
+    subscriptions = relationship("SubscriptionModel", back_populates="user", cascade="all, delete-orphan")
 
 class FirebaseTokenModel(Base):
     __tablename__ = 'firebase_token'
