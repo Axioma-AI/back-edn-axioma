@@ -1,7 +1,7 @@
 import logging
 import json
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -39,153 +39,96 @@ class SubscriptionService:
     async def get_user_from_token(self, token: str, db: Session):
         """Get user from Firebase token"""
         try:
+            logger.info(f"Verifying Firebase token: {token[:10]}...")
+            
             # Verify the Firebase token
             decoded_token = auth.verify_id_token(token)
+            logger.info(f"Token verified successfully. Decoded token contains: {list(decoded_token.keys())}")
+            
             email = decoded_token.get('email')
             
             if not email:
+                logger.error(f"Email not found in token. Token keys: {list(decoded_token.keys())}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid token: email not found"
                 )
                 
             # Find the user in the database
+            logger.info(f"Looking up user by email: {email}")
             user = db.query(UserModel).filter(UserModel.email == email).first()
+            
             if not user:
+                logger.error(f"User not found for email: {email}")
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="User not found"
                 )
                 
+            logger.info(f"User found: id={user.id}, email={user.email}")
             return user
-        except auth.InvalidIdTokenError:
+            
+        except auth.InvalidIdTokenError as e:
+            logger.error(f"Invalid Firebase token: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired token"
+                detail=f"Invalid or expired token: {str(e)}"
             )
         except Exception as e:
             error_traceback = traceback.format_exc()
             logger.error(f"Error getting user from token: {e}\nTraceback: {error_traceback}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error processing authentication"
+                detail=f"Error processing authentication: {str(e)}"
             )
     
     async def create_subscription(self, db: Session, user_id: int, product_id: str, provider: str, receipt_data: dict = None):
-        """Create a new subscription for a user"""
+        """Create a new subscription for a user or update an existing one"""
         try:
             # Extract base plan ID from product ID (e.g., 'pro_plan_monthly' -> 'pro_plan')
-            base_plan_id = product_id.split('_')[0]
-            if len(product_id.split('_')) > 1 and product_id.split('_')[1] == 'plan':
-                base_plan_id = f"{product_id.split('_')[0]}_{product_id.split('_')[1]}"
-            
+            base_plan_id = self._extract_base_plan_id(product_id)
             logger.info(f"Extracted base plan ID: {base_plan_id} from product ID: {product_id}")
             
-            # Map product IDs to subscription tiers
+            # Determine the subscription tier
             tier_mapping = {
                 'pro_plan': SubscriptionTier.PRO,
                 'analyst_plan': SubscriptionTier.ANALYST,
-                # Add more product IDs as needed
             }
-            
-            # Determine the subscription tier
             tier = self._determine_subscription_tier(base_plan_id, tier_mapping)
             
-            # Verify receipt if provided
+            # Verify receipt if provided and update tier if necessary
             if receipt_data:
-                if provider == 'google_play':
-                    receipt_verification = self._verify_google_play_receipt(receipt_data)
-                    # Use the tier from receipt verification if available
-                    if receipt_verification and 'tier' in receipt_verification:
-                        tier_value = receipt_verification['tier']
-                        logger.info(f"Received tier value from verification: {tier_value}")
-                        tier = SubscriptionTier.from_string(tier_value)
-                        logger.info(f"Mapped tier value to enum: {tier} (value: {tier.value})")
-                elif provider == 'apple':
-                    # TODO: Implement Apple receipt verification
-                    pass
-                else:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Unsupported provider: {provider}"
-                    )
+                tier = self._verify_receipt_and_get_tier(provider, receipt_data, tier)
             
-            # Get the user
-            user = db.query(UserModel).filter(UserModel.id == user_id).first()
-            if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"User with ID {user_id} not found"
-                )
-        
-        # Check if user already has an active subscription
-        existing_subscription = db.query(SubscriptionModel).filter(
-                    SubscriptionModel.user_id == user_id,
-                SubscriptionModel.status == SubscriptionStatus.ACTIVE
-        ).first()
-        
-            # Generate a unique subscription ID
-            subscription_id = str(uuid.uuid4())
-            
-            # If user has an active subscription, update it
-        if existing_subscription:
-                # Ensure tier is an enum object
-                if isinstance(tier, str):
-                    logger.warning(f"tier is a string: '{tier}', converting to enum")
-                    tier = SubscriptionTier.from_string(tier)
-                
-                logger.info(f"Updating subscription with tier: {tier} (value: {tier.value})")
-                
-                existing_subscription.tier = tier
-                existing_subscription.product_id = product_id
-                existing_subscription.platform = 'android' if provider == 'google_play' else 'ios'
-                existing_subscription.receipt_data = json.dumps(receipt_data) if receipt_data else None
-                existing_subscription.updated_at = datetime.utcnow()
-                
-                # Add to subscription history
-                subscription_history = SubscriptionHistoryModel(
-                    subscription_id=existing_subscription.id,
-                    action=SubscriptionAction.UPDATED,
-                    details=f"Updated subscription to {tier.value}"
-                )
-                db.add(subscription_history)
-                db.commit()
-                
-                return existing_subscription
-        
-        # Create a new subscription
             # Ensure tier is an enum object
             if isinstance(tier, str):
                 logger.warning(f"tier is a string: '{tier}', converting to enum")
                 tier = SubscriptionTier.from_string(tier)
+                
+            logger.info(f"Processing subscription with tier: {tier} (value: {tier.value})")
             
-            logger.info(f"Creating new subscription with tier: {tier} (value: {tier.value})")
-        
-        new_subscription = SubscriptionModel(
-                user_id=user_id,
-            subscription_id=subscription_id,
-                tier=tier,
-            status=SubscriptionStatus.ACTIVE,
-                product_id=product_id,
-                platform='android' if provider == 'google_play' else 'ios',
-                receipt_data=json.dumps(receipt_data) if receipt_data else None,
-            start_date=datetime.utcnow(),
-                end_date=datetime.utcnow() + timedelta(days=30)  # Default to 30 days
-        )
-        
-        db.add(new_subscription)
-            db.flush()  # This ensures the subscription gets an ID without committing the transaction
-        
-            # Add to subscription history
-            subscription_history = SubscriptionHistoryModel(
-            subscription_id=new_subscription.id,
-                action=SubscriptionAction.CREATED,
-                details=f"Created new {tier.value} subscription"
-        )
-            db.add(subscription_history)
-            db.commit()
-        
-        return new_subscription
+            # Check if user has an active subscription
+            existing_subscription = (
+                db.query(SubscriptionModel)
+                .filter(SubscriptionModel.user_id == user_id, SubscriptionModel.status == SubscriptionStatus.ACTIVE)
+                .first()
+            )
+            
+            current_time = datetime.now(timezone.utc)
+            
+            # Either update existing subscription or create a new one
+            if existing_subscription:
+                logger.info(f"Updating existing subscription for user {user_id}")
+                subscription = self._update_existing_subscription(
+                    db, existing_subscription, tier, product_id, provider, receipt_data, current_time
+                )
+            else:
+                logger.info(f"Creating new subscription for user {user_id}")
+                subscription = self._create_new_subscription(
+                    db, user_id, tier, product_id, provider, receipt_data, current_time
+                )
+            
+            return subscription
             
         except Exception as e:
             db.rollback()
@@ -195,56 +138,174 @@ class SubscriptionService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error creating subscription: {str(e)}"
             )
+            
+    def _extract_base_plan_id(self, product_id):
+        """Extract the base plan ID from a product ID"""
+        parts = product_id.split('_')
+        base_plan_id = parts[0]
+        if len(parts) > 1 and parts[1] == 'plan':
+            base_plan_id = f"{parts[0]}_{parts[1]}"
+        return base_plan_id
+            
+    def _verify_receipt_and_get_tier(self, provider, receipt_data, default_tier):
+        """Verify receipt data and extract tier information"""
+        if provider == 'google_play':
+            receipt_verification = self._verify_google_play_receipt(receipt_data)
+            # Use the tier from receipt verification if available
+            if receipt_verification and 'tier' in receipt_verification:
+                tier_value = receipt_verification['tier']
+                logger.info(f"Received tier value from verification: {tier_value}")
+                return SubscriptionTier.from_string(tier_value)
+        elif provider == 'apple':
+            # TODO: Implement Apple receipt verification
+            pass
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported provider: {provider}"
+            )
+        return default_tier
+        
+    def _update_existing_subscription(self, db, subscription, tier, product_id, provider, receipt_data, current_time):
+        """Update an existing subscription with new details"""
+        # Update subscription details
+        subscription.tier = tier.value
+        subscription.product_id = product_id
+        subscription.provider = provider
+        subscription.platform = 'android' if provider == 'google_play' else 'ios'
+        if receipt_data:
+            subscription.receipt_data = json.dumps(receipt_data)
+        subscription.updated_at = current_time
+        subscription.end_date = self._extract_subscription_end_date(None, receipt_data, provider)
+        
+        # Add to subscription history
+        subscription_history = SubscriptionHistoryModel(
+            subscription_id=subscription.id,
+            action=SubscriptionAction.UPDATED,
+            details=f"Updated subscription to {tier.value}",
+            created_at=current_time
+        )
+        db.add(subscription_history)
+        db.commit()
+        
+        logger.info(f"Successfully updated subscription {subscription.id} to tier {tier.value}")
+        return subscription
+        
+    def _create_new_subscription(self, db, user_id, tier, product_id, provider, receipt_data, current_time):
+        """Create a new subscription record"""
+        
+        # Generate a unique subscription ID
+        unique_id = str(uuid.uuid4())
+        
+        new_subscription = SubscriptionModel(
+            user_id=user_id,
+            subscription_id=unique_id,
+            tier=tier.value,
+            status=SubscriptionStatus.ACTIVE,
+            platform='android' if provider == 'google_play' else 'ios',
+            product_id=product_id,
+            provider=provider,
+            start_date=current_time,
+            end_date=self._extract_subscription_end_date(None, receipt_data, provider),
+            receipt_data=json.dumps(receipt_data) if receipt_data else None,
+            created_at=current_time,
+            updated_at=current_time
+        )
+        
+        db.add(new_subscription)
+        db.flush()  # This ensures the subscription gets an ID without committing the transaction
+        
+        # Add to subscription history
+        subscription_history = SubscriptionHistoryModel(
+            subscription_id=new_subscription.id,
+            action=SubscriptionAction.CREATED,
+            details=f"Created new {tier.value} subscription",
+            created_at=current_time
+        )
+        db.add(subscription_history)
+        db.commit()
+        
+        logger.info(f"Successfully created subscription {new_subscription.id} with tier {tier.value}")
+        return new_subscription
     
     async def verify_subscription(self, token: str, db: Session):
-        """Verify if a user has an active subscription"""
-        user = await self.get_user_from_token(token, db)
-        
-        # Get the user's active subscription
-        subscription = db.query(SubscriptionModel).filter(
-            and_(
-                SubscriptionModel.user_id == user.id,
-                SubscriptionModel.status == SubscriptionStatus.ACTIVE
-            )
-        ).first()
-        
-        if not subscription:
-            return {
-                "has_subscription": False,
-                "tier": SubscriptionTier.FREE.value,
-                "message": "No active subscription found"
-            }
-        
-        # Check if subscription has expired
-        if subscription.end_date and subscription.end_date < datetime.utcnow():
-            # Update subscription status
-            subscription.status = SubscriptionStatus.EXPIRED
+        """Verify user subscription"""
+        try:
+            logger.info("Starting subscription verification process")
+            user = await self.get_user_from_token(token, db)
+            logger.info(f"User retrieved from token: user_id={user.id}, email={user.email}")
             
-            # Add subscription history
-            history = SubscriptionHistoryModel(
-                subscription_id=subscription.id,
-                action=SubscriptionAction.EXPIRED,
-                details="Subscription expired"
-            )
-            db.add(history)
-            db.commit()
+            # Check if user has active subscription
+            current_time = datetime.now(timezone.utc)
+            logger.info(f"Checking active subscriptions at current time: {current_time}")
             
+            subscription = (
+                db.query(SubscriptionModel)
+                .filter(
+                    SubscriptionModel.user_id == user.id,
+                    SubscriptionModel.status == SubscriptionStatus.ACTIVE,
+                    SubscriptionModel.end_date > current_time
+                )
+                .order_by(SubscriptionModel.created_at.desc())
+                .first()
+            )
+            
+            if subscription:
+                logger.info(f"Found active subscription: id={subscription.id}, tier={subscription.tier}, end_date={subscription.end_date}")
+                # User has active subscription, return subscription details
+                return {
+                    "has_subscription": True,
+                    "subscription": {
+                        "id": subscription.id,
+                        "tier": subscription.tier.value,
+                        "status": subscription.status.value,
+                        "provider": subscription.provider,
+                        "product_id": subscription.product_id,
+                        "start_date": subscription.created_at.isoformat(),
+                        "end_date": subscription.end_date.isoformat()
+                    }
+                }
+            
+            # Check if user has expired subscription
+            logger.info("No active subscription found, checking for expired subscriptions")
+            expired_subscription = (
+                db.query(SubscriptionModel)
+                .filter(
+                    SubscriptionModel.user_id == user.id,
+                    SubscriptionModel.status == SubscriptionStatus.ACTIVE,
+                    SubscriptionModel.end_date <= current_time
+                )
+                .order_by(SubscriptionModel.created_at.desc())
+                .first()
+            )
+            
+            if expired_subscription:
+                logger.info(f"Found expired subscription: id={expired_subscription.id}, updating status to EXPIRED")
+                # Update status to EXPIRED
+                expired_subscription.status = SubscriptionStatus.EXPIRED
+                db.add(expired_subscription)
+                
+                # Create subscription history record
+                history = SubscriptionHistoryModel(
+                    subscription_id=expired_subscription.id,
+                    action=SubscriptionAction.EXPIRED,
+                    tier=expired_subscription.tier,
+                    created_at=current_time
+                )
+                db.add(history)
+                db.commit()
+                logger.info("Subscription status updated to EXPIRED and history record created")
+            
+            logger.info("No active subscription found for user")
             return {
-                "has_subscription": False,
-                "tier": SubscriptionTier.FREE.value,
-                "message": "Subscription has expired",
-                "expired_date": subscription.end_date.isoformat()
+                "has_subscription": False
             }
-        
-        # Return active subscription details
-        return {
-            "has_subscription": True,
-            "tier": subscription.tier.value,
-            "platform": subscription.platform,
-            "start_date": subscription.start_date.isoformat(),
-            "end_date": subscription.end_date.isoformat() if subscription.end_date else None,
-            "auto_renew": subscription.auto_renew
-        }
+            
+        except Exception as e:
+            import traceback
+            error_traceback = traceback.format_exc()
+            logger.error(f"Error in verify_subscription: {str(e)}\nTraceback: {error_traceback}")
+            raise
     
     async def cancel_subscription(self, token: str, db: Session):
         """Cancel a user's subscription"""
@@ -364,7 +425,7 @@ class SubscriptionService:
             logger.info(f"Returning mock verification for product ID: {product_id}")
             
             # Set a default expiry time (30 days from now)
-            expiry_time = datetime.utcnow() + timedelta(days=30)
+            expiry_time = datetime.now(timezone.utc) + timedelta(days=30)
             
             return {
                 "verified": True,
@@ -381,13 +442,13 @@ class SubscriptionService:
                 detail=f"Error verifying Google Play receipt: {str(e)}"
             )
 
-    async def process_subscription_notification(self, notification_data: dict, db: Session):
-        """Process subscription notification from Google Play or Apple"""
+    async def process_subscription_notification(self, notification_data: dict, db: Session, token: str = None):
+        """Process a subscription notification from Google Play or App Store"""
         try:
             logger.info(f"Processing notification data: {notification_data}")
             
             # Check if this is a Google Play subscription notification
-            subscription_notification = notification_data.get('subscriptionNotification') or notification_data.get('voidedSubscriptionNotification')
+            subscription_notification = notification_data.get('subscriptionNotification') or notification_data.get('voidedPurchaseNotification')
             if subscription_notification:
                 # Extract data from Google Play notification
                 purchase_token = subscription_notification.get('purchaseToken')
@@ -465,8 +526,8 @@ class SubscriptionService:
                         existing_sub.status = SubscriptionStatus.ACTIVE
                         existing_sub.platform = 'android'
                         existing_sub.receipt_data = json.dumps(receipt_data)
-                        existing_sub.updated_at = datetime.utcnow()
-                        existing_sub.end_date = datetime.utcnow() + timedelta(days=30)  # Default to 30 days
+                        existing_sub.updated_at = datetime.now(timezone.utc)
+                        existing_sub.end_date = self._extract_subscription_end_date(notification_data, receipt_data, 'google_play')
                         
                         # Add to subscription history
                         action = SubscriptionAction.UPDATED
@@ -478,7 +539,8 @@ class SubscriptionService:
                         subscription_history = SubscriptionHistoryModel(
                             subscription_id=existing_sub.id,
                             action=action,
-                            details=f"Updated subscription to {subscription_tier.value} via notification"
+                            details=f"Updated subscription to {subscription_tier.value} via notification",
+                            created_at=datetime.now(timezone.utc)
                         )
                         db.add(subscription_history)
                         db.commit()
@@ -497,7 +559,8 @@ class SubscriptionService:
                         subscription_history = SubscriptionHistoryModel(
                             subscription_id=existing_sub.id,
                             action=SubscriptionAction.CANCELLED,
-                            details="Subscription cancelled via notification"
+                            details="Subscription cancelled via notification",
+                            created_at=datetime.now(timezone.utc)
                         )
                         db.add(subscription_history)
                         db.commit()
@@ -515,7 +578,8 @@ class SubscriptionService:
                         subscription_history = SubscriptionHistoryModel(
                             subscription_id=existing_sub.id,
                             action=SubscriptionAction.EXPIRED,
-                            details="Subscription expired via notification"
+                            details="Subscription expired via notification",
+                            created_at=datetime.now(timezone.utc)
                         )
                         db.add(subscription_history)
                         db.commit()
@@ -537,8 +601,201 @@ class SubscriptionService:
             subscription_id = notification_data.get('subscriptionId')
             user_id = notification_data.get('userId')
             
+            # Check if this is a voided purchase notification (refund)
+            if 'voidedPurchaseNotification' in notification_data:
+                voided_data = notification_data['voidedPurchaseNotification']
+                purchase_token = voided_data.get('purchaseToken')
+                logger.info(f"Processing voided purchase notification with token: {purchase_token}")
+                
+                if not purchase_token:
+                    logger.error(f"Missing purchase token in voided notification: {notification_data}")
+                    return {"success": False, "error": "Missing purchase token in voided notification"}
+                
+                # Find subscription by purchase token (stored in receipt_data)
+                subscriptions = db.query(SubscriptionModel).filter(
+                    SubscriptionModel.status == SubscriptionStatus.ACTIVE
+                ).all()
+                
+                found_subscription = None
+                for sub in subscriptions:
+                    if not sub.receipt_data:
+                        continue
+                    
+                    try:
+                        receipt = json.loads(sub.receipt_data)
+                        if receipt.get('purchaseToken') == purchase_token:
+                            found_subscription = sub
+                            break
+                    except (json.JSONDecodeError, TypeError):
+                        continue
+                
+                if found_subscription:
+                    logger.info(f"Found subscription {found_subscription.id} for voided purchase")
+                    found_subscription.status = SubscriptionStatus.CANCELLED
+                    
+                    # Add subscription history
+                    subscription_history = SubscriptionHistoryModel(
+                        subscription_id=found_subscription.id,
+                        action=SubscriptionAction.CANCELLED,
+                        details="Subscription cancelled due to refund",
+                        created_at=datetime.now(timezone.utc)
+                    )
+                    db.add(subscription_history)
+                    db.commit()
+                    
+                    return {"success": True, "message": "Subscription cancelled due to refund"}
+                else:
+                    logger.warning(f"No active subscription found for voided purchase token: {purchase_token}")
+                    return {"success": True, "message": "No active subscription found for voided purchase"}
+            
+            # Check if this is a subscription notification
+            elif 'subscriptionNotification' in notification_data:
+                sub_notification = notification_data['subscriptionNotification']
+                purchase_token = sub_notification.get('purchaseToken')
+                subscription_id = sub_notification.get('subscriptionId')
+                notification_type = sub_notification.get('notificationType')
+                
+                logger.info(f"Processing subscription notification type {notification_type} for subscription {subscription_id}")
+                
+                if not purchase_token or not subscription_id:
+                    logger.error(f"Missing purchase token or subscription ID in notification: {notification_data}")
+                    return {"success": False, "error": "Missing purchase token or subscription ID in notification"}
+                
+                # Update user_id to None since it's not directly in the notification
+                # We'll need to find the user by subscription
+                user_id = None
+                
+                # Find subscription by purchase token (stored in receipt_data) or subscription_id
+                subscriptions = db.query(SubscriptionModel).all()
+                
+                found_subscription = None
+                for sub in subscriptions:
+                    # Check by subscription_id first
+                    if sub.subscription_id == subscription_id:
+                        found_subscription = sub
+                        break
+                        
+                    # Then try by receipt_data
+                    if not sub.receipt_data:
+                        continue
+                    
+                    try:
+                        receipt = json.loads(sub.receipt_data)
+                        if receipt.get('purchaseToken') == purchase_token:
+                            found_subscription = sub
+                            break
+                    except (json.JSONDecodeError, TypeError):
+                        continue
+                
+                if found_subscription:
+                    # Found the subscription, use its user_id
+                    user_id = found_subscription.user_id
+                    
+                    # Process different notification types
+                    # 1: RECOVERED, 2: RENEWED, 3: CANCELED, 4: PURCHASED, 5: ON_HOLD, 
+                    # 6: IN_GRACE_PERIOD, 7: RESTARTED, 8: PRICE_CHANGE_CONFIRMED, 
+                    # 9: DEFERRED, 10: PAUSED, 11: PAUSE_SCHEDULE_CHANGED, 12: REVOKED, 
+                    # 13: EXPIRED
+                    if notification_type in [1, 2, 4, 7]:  # RECOVERED, RENEWED, PURCHASED, RESTARTED
+                        # Update existing subscription
+                        found_subscription.status = SubscriptionStatus.ACTIVE
+                        
+                        # Extract base plan ID
+                        base_plan_id = self._extract_base_plan_id(subscription_id)
+                        tier = self._determine_subscription_tier(base_plan_id)
+                        
+                        # Prepare receipt data
+                        receipt_data = {
+                            'purchaseToken': purchase_token,
+                            'productId': subscription_id
+                        }
+                        
+                        # Update end date
+                        found_subscription.end_date = self._extract_subscription_end_date(
+                            notification_data, receipt_data, found_subscription.provider
+                        )
+                        
+                        action = SubscriptionAction.UPDATED
+                        if notification_type == 4:  # PURCHASED
+                            action = SubscriptionAction.CREATED
+                        elif notification_type == 2:  # RENEWED
+                            action = SubscriptionAction.RENEWED
+                        
+                        # Add subscription history
+                        subscription_history = SubscriptionHistoryModel(
+                            subscription_id=found_subscription.id,
+                            action=action,
+                            details=f"Subscription {action.value.lower()} via notification",
+                            created_at=datetime.now(timezone.utc)
+                        )
+                        db.add(subscription_history)
+                        db.commit()
+                        
+                        return {"success": True, "subscription_id": found_subscription.id}
+                    
+                    elif notification_type == 3:  # CANCELED
+                        found_subscription.status = SubscriptionStatus.CANCELLED
+                        
+                        # Add subscription history
+                        subscription_history = SubscriptionHistoryModel(
+                            subscription_id=found_subscription.id,
+                            action=SubscriptionAction.CANCELLED,
+                            details="Subscription cancelled via notification",
+                            created_at=datetime.now(timezone.utc)
+                        )
+                        db.add(subscription_history)
+                        db.commit()
+                        
+                        return {"success": True, "subscription_id": found_subscription.id}
+                    
+                elif notification_type == 13:  # EXPIRED
+                        found_subscription.status = SubscriptionStatus.EXPIRED
+                        
+                        # Add subscription history
+                        subscription_history = SubscriptionHistoryModel(
+                            subscription_id=found_subscription.id,
+                            action=SubscriptionAction.EXPIRED,
+                            details="Subscription expired via notification",
+                            created_at=datetime.now(timezone.utc)
+                        )
+                        db.add(subscription_history)
+                        db.commit()
+                        
+                        return {"success": True, "subscription_id": found_subscription.id}
+                    
+                # For other notification types, just log and return success
+                logger.info(f"Processed notification type {notification_type} for subscription {subscription_id}")
+                return {"success": True, "message": f"Processed notification type {notification_type}"}
+            else:
+                logger.warning(f"No subscription found for ID: {subscription_id} or token: {purchase_token}")
+                
+                # If this is a PURCHASED notification and we don't have the subscription yet,
+                # we can't create it without a user ID
+                if notification_type == 4:  # PURCHASED
+                    logger.warning("Received PURCHASED notification for unknown subscription")
+                
+                return {"success": True, "message": "Acknowledged notification for unknown subscription"}
+            
             if not all([purchase_token, subscription_id, user_id]):
                 logger.error(f"Missing required notification data: {notification_data}")
+                
+                # Check if this is an unhandled notification type and log it
+                notification_keys = notification_data.keys()
+                known_notification_types = ['voidedPurchaseNotification', 'subscriptionNotification', 'testNotification']
+                
+                unknown_types = [key for key in notification_keys if key.endswith('Notification') and key not in known_notification_types]
+                
+                if unknown_types:
+                    logger.warning(f"Received unhandled notification type: {unknown_types[0]}")
+                    # Log the structure for future implementation
+                    logger.info(f"Notification structure: {notification_data[unknown_types[0]]}")
+                    return {"success": True, "message": f"Unhandled notification type: {unknown_types[0]}"}
+                
+                # If it's a test notification, just acknowledge it
+                if 'testNotification' in notification_data:
+                    logger.info("Received test notification")
+                    return {"success": True, "message": "Acknowledged test notification"}
+                    
                 return {"success": False, "error": "Missing required notification data"}
             
             logger.info(f"Processing subscription notification for user {user_id}, subscription {subscription_id}")
@@ -604,14 +861,15 @@ class SubscriptionService:
                 existing_subscription.status = SubscriptionStatus.ACTIVE
                 existing_subscription.platform = 'android'
                 existing_subscription.receipt_data = json.dumps(receipt_data)
-                existing_subscription.updated_at = datetime.utcnow()
-                existing_subscription.end_date = datetime.utcnow() + timedelta(days=30)  # Default to 30 days
+                existing_subscription.updated_at = datetime.now(timezone.utc)
+                existing_subscription.end_date = self._extract_subscription_end_date(notification_data, receipt_data, 'google_play')
                 
                 # Add to subscription history
                 subscription_history = SubscriptionHistoryModel(
                     subscription_id=existing_subscription.id,
                     action=SubscriptionAction.UPDATED,
-                    details=f"Updated subscription to {subscription_tier.value} via notification"
+                    details=f"Updated subscription to {subscription_tier.value} via notification",
+                    created_at=datetime.now(timezone.utc)
                 )
                 db.add(subscription_history)
                 db.commit()
@@ -622,12 +880,20 @@ class SubscriptionService:
                 # Create new subscription
                 logger.info(f"Creating new subscription for user {user_id} with tier {subscription_tier.value}")
                 try:
-                    new_subscription = await self.create_subscription(
-                        db=db,
-                        user_id=user_id,
-                        product_id=subscription_id,
-                        provider='google_play',
-                        receipt_data=receipt_data
+                    # Determine tier from subscription ID
+                    base_plan_id = self._extract_base_plan_id(subscription_id)
+                    tier = self._determine_subscription_tier(base_plan_id)
+                    
+                    # Create subscription with helper method
+                    current_time = datetime.now(timezone.utc)
+                    new_subscription = self._create_new_subscription(
+                        db, 
+                        user.id, 
+                        tier, 
+                        subscription_id, 
+                        "google_play", 
+                        receipt_data, 
+                        current_time
                     )
                     
                     logger.info(f"Successfully created new subscription {new_subscription.id}")
@@ -640,36 +906,44 @@ class SubscriptionService:
                         # Create a new subscription directly
                         logger.info("Attempting direct subscription creation after failure")
                         
-                        # Ensure subscription_tier is an enum object
-                        if isinstance(subscription_tier, str):
-                            logger.warning(f"subscription_tier is a string: '{subscription_tier}', converting to enum")
-                            subscription_tier = SubscriptionTier.from_string(subscription_tier)
+                        # Use the token passed as a parameter
+                        if not token:
+                            logger.error("No authentication token provided")
+                            return {"success": False, "error": "Authentication token missing"}
                         
-                        logger.info(f"Creating subscription with tier: {subscription_tier} (value: {subscription_tier.value})")
+                        # Get user ID from token
+                        user = await self.get_user_from_token(token, db)
+                        if not user:
+                            logger.error("User not found from token")
+                            return {"success": False, "error": "User not found"}
                         
-                        new_subscription = SubscriptionModel(
-                            user_id=user_id,
-                            subscription_id=str(uuid.uuid4()),
-                            tier=subscription_tier,
-                            status=SubscriptionStatus.ACTIVE,
-                            product_id=subscription_id,
-                            platform='android',
-                            receipt_data=json.dumps(receipt_data),
-                            start_date=datetime.utcnow(),
-                            end_date=datetime.utcnow() + timedelta(days=30)
+                        # Extract subscription info
+                        package_name = notification_data.get('packageName')
+                        subscription_id = notification_data.get('subscriptionId')
+                        purchase_token = notification_data.get('purchaseToken')
+                        
+                        # Prepare receipt data
+                        receipt_data = {
+                            'packageName': package_name,
+                            'purchaseToken': purchase_token,
+                            'productId': subscription_id
+                        }
+                        
+                        # Determine tier from subscription ID
+                        base_plan_id = self._extract_base_plan_id(subscription_id)
+                        tier = self._determine_subscription_tier(base_plan_id)
+                        
+                        # Create subscription with helper method
+                        current_time = datetime.now(timezone.utc)
+                        new_subscription = self._create_new_subscription(
+                            db, 
+                            user.id, 
+                            tier, 
+                            subscription_id, 
+                            "google_play", 
+                            receipt_data, 
+                            current_time
                         )
-                        
-                        db.add(new_subscription)
-                        db.flush()  # This ensures the subscription gets an ID without committing the transaction
-                        
-                        # Add to subscription history
-                        subscription_history = SubscriptionHistoryModel(
-                            subscription_id=new_subscription.id,
-                            action=SubscriptionAction.CREATED,
-                            details=f"Created new {subscription_tier.value} subscription via notification"
-                        )
-                        db.add(subscription_history)
-                db.commit()
                         
                         logger.info(f"Successfully created new subscription {new_subscription.id} directly")
                         return {"success": True, "subscription_id": new_subscription.id}
@@ -735,7 +1009,11 @@ class SubscriptionService:
             
             # Run the async function in the event loop
             return loop.run_until_complete(
-                self.process_subscription_notification(notification_data, db)
+                self.process_subscription_notification(
+                    notification_data, 
+                    db, 
+                    notification_data.get('token') or notification_data.get('idToken')
+                )
             )
         except Exception as e:
             error_traceback = traceback.format_exc()
@@ -771,3 +1049,70 @@ class SubscriptionService:
             logger.info(f"Using mapped tier: {subscription_tier} (value: {subscription_tier.value})")
             
         return subscription_tier 
+
+    def _extract_subscription_end_date(self, notification_data, receipt_data=None, provider=None):
+        """Extract subscription end date from notification or receipt data"""
+        end_date = None
+        # Try to get from notification data first
+        logger.info(f"Extracting subscription end date from notification data: {notification_data}")
+        logger.info(f"Extracting subscription end date from receipt data: {receipt_data}")
+        if notification_data:
+            # For Google Play
+            if 'expiryTimeMillis' in notification_data:
+                millis = int(notification_data['expiryTimeMillis'])
+                end_date = datetime.fromtimestamp(millis / 1000.0, tz=timezone.utc)
+                logger.info(f"Extracted end date from expiryTimeMillis: {end_date}")
+                return end_date
+                
+            # For Google Play - alternative field
+            if 'validUntilTimestampMsec' in notification_data:
+                millis = int(notification_data['validUntilTimestampMsec'])
+                end_date = datetime.fromtimestamp(millis / 1000.0, tz=timezone.utc)
+                logger.info(f"Extracted end date from validUntilTimestampMsec: {end_date}")
+                return end_date
+                
+            # For Google Play - another alternative
+            if 'expireTime' in notification_data:
+                # Could be in ISO format string
+                try:
+                    end_date = datetime.fromisoformat(notification_data['expireTime'].replace('Z', '+00:00'))
+                    logger.info(f"Extracted end date from expireTime: {end_date}")
+                    return end_date
+                except (ValueError, TypeError):
+                    logger.warning(f"Failed to parse expireTime: {notification_data['expireTime']}")
+            
+            # For Apple App Store
+            if 'expires_date_ms' in notification_data:
+                millis = int(notification_data['expires_date_ms'])
+                end_date = datetime.fromtimestamp(millis / 1000.0, tz=timezone.utc)
+                logger.info(f"Extracted end date from expires_date_ms: {end_date}")
+                return end_date
+
+        # Try to get from receipt data if available
+        if receipt_data:
+            # For Google Play
+            if 'expiryTimeMillis' in receipt_data:
+                millis = int(receipt_data['expiryTimeMillis'])
+                end_date = datetime.fromtimestamp(millis / 1000.0, tz=timezone.utc)
+                logger.info(f"Extracted end date from receipt expiryTimeMillis: {end_date}")
+                return end_date
+                
+            # For Apple App Store
+            if 'expires_date_ms' in receipt_data:
+                millis = int(receipt_data['expires_date_ms'])
+                end_date = datetime.fromtimestamp(millis / 1000.0, tz=timezone.utc)
+                logger.info(f"Extracted end date from receipt expires_date_ms: {end_date}")
+                return end_date
+        
+        # If we couldn't find an end date, use default period based on provider
+        current_time = datetime.now(timezone.utc)
+        if provider == 'google_play' or provider == 'android':
+            # Default to 30 days for Google Play
+            end_date = current_time + timedelta(days=30)
+            logger.warning(f"Using default end date (30 days): {end_date}")
+        else:
+            # Default to 30 days for Apple/other providers
+            end_date = current_time + timedelta(days=30)
+            logger.warning(f"Using default end date (30 days): {end_date}")
+            
+        return end_date 

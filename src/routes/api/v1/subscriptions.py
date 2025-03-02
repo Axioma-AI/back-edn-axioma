@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, status, Body
+from fastapi import APIRouter, Depends, Query, HTTPException, Request, status, Body
 from sqlalchemy.orm import Session
 from src.config.db_config import get_db
 from src.services.subscription_service import SubscriptionService
 from src.schema.requests.request_subscription_models import CreateSubscriptionRequest
 from src.utils.logger import setup_logger
 import logging
+import json
 
 logger = setup_logger(__name__, level=logging.INFO)
 router = APIRouter()
@@ -49,15 +50,59 @@ async def verify_subscription(
 ):
     """Verify subscription status"""
     try:
-        return await subscription_service.verify_subscription(token, db)
+        logger.info(f"Verifying subscription for token: {token[:10]}...")
+        result = await subscription_service.verify_subscription(token, db)
+        logger.info(f"Subscription verification result: {result}")
+        return result
     except HTTPException as http_exc:
-        logger.error(f"HTTP Exception: {http_exc.detail}")
+        logger.error(f"HTTP Exception in verify_subscription: {http_exc.detail}")
         raise
     except Exception as e:
-        logger.error(f"Error verifying subscription: {e}")
+        import traceback
+        error_traceback = traceback.format_exc()
+        logger.error(f"Error verifying subscription: {str(e)}\nTraceback: {error_traceback}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while verifying the subscription"
+            detail=f"An error occurred while verifying the subscription: {str(e)}"
+        )
+
+@router.post("/subscriptions/verify")
+async def verify_subscription_post(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Verify subscription status using POST method"""
+    try:
+        body = await request.json()
+        token = body.get("token")
+        
+        if not token:
+            logger.error("Missing required token in request body")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing required token"
+            )
+        
+        logger.info(f"Verifying subscription for token: {token[:10]}...")
+        result = await subscription_service.verify_subscription(token, db)
+        logger.info(f"Subscription verification result: {result}")
+        return result
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON body in request")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid JSON body"
+        )
+    except HTTPException as http_exc:
+        logger.error(f"HTTP Exception in verify_subscription_post: {http_exc.detail}")
+        raise
+    except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
+        logger.error(f"Error verifying subscription (POST): {str(e)}\nTraceback: {error_traceback}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while verifying the subscription: {str(e)}"
         )
 
 @router.post("/subscriptions/cancel")
