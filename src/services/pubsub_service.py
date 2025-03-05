@@ -2,10 +2,7 @@ import logging
 import json
 import base64
 import threading
-import asyncio
-from datetime import datetime
 from google.cloud import pubsub_v1
-from concurrent.futures import TimeoutError
 from sqlalchemy.orm import Session
 from google.oauth2 import service_account
 from src.config.config import get_settings
