@@ -1,5 +1,6 @@
 import logging
-from sqlalchemy.orm import Session
+from sqlalchemy import select, delete
+from src.config.db_config import get_db
 from src.models.categories_model import InterestsModel
 from src.schema.responses.response_categories_models import CategoriesResponseModel
 from src.utils.auth_utils import decode_and_sync_user
@@ -8,108 +9,97 @@ from src.utils.logger import setup_logger
 logger = setup_logger(__name__, level=logging.INFO)
 
 class CategoriesService:
-    async def process_categories(self, token: str, keywords: list, db: Session):
-        """
-        Procesa las categorías: elimina las existentes, maneja duplicados dentro de la solicitud y agrega las nuevas.
-        """
-        try:
-            # Valida y sincroniza al usuario con la base de datos
-            user = decode_and_sync_user(token, db)
+    async def process_categories(self, token: str, keywords: list):
+        async for db in get_db():
+            try:
+                # Validar y sincronizar usuario
+                user = decode_and_sync_user(token, db)
 
-            # Eliminar todas las categorías existentes del usuario
-            db.query(InterestsModel).filter_by(user_id=user.id).delete()
-            db.commit()  # Confirma la eliminación
+                # Eliminar intereses existentes
+                delete_stmt = delete(InterestsModel).where(InterestsModel.user_id == user.id)
+                await db.execute(delete_stmt)
+                await db.commit()
 
-            # Convertir todas las palabras clave a minúsculas
-            keywords = [keyword.lower() for keyword in keywords]
+                keywords = [keyword.lower() for keyword in keywords]
+                unique_keywords = list(set(keywords))
 
-            # Filtrar duplicados en las palabras clave enviadas
-            unique_keywords = list(set(keywords))  # Usar set para eliminar duplicados en el mismo request
+                # Obtener intereses restantes (aunque se borraron, por seguridad)
+                stmt = select(InterestsModel.keyword).where(InterestsModel.user_id == user.id)
+                result = await db.execute(stmt)
+                existing_keywords = {row[0] for row in result.fetchall()}
 
-            # Obtener palabras clave existentes (después de eliminar las categorías previas)
-            existing_keywords = {interest.keyword for interest in db.query(InterestsModel).filter_by(user_id=user.id).all()}
+                new_keywords = [k for k in unique_keywords if k not in existing_keywords]
+                skipped_keywords = [k for k in unique_keywords if k in existing_keywords]
 
-            # Filtrar palabras clave ya existentes
-            new_keywords = [keyword for keyword in unique_keywords if keyword not in existing_keywords]
-            skipped_keywords = [keyword for keyword in unique_keywords if keyword in existing_keywords]
+                # Agregar nuevos intereses
+                interests = []
+                for keyword in new_keywords:
+                    interest = InterestsModel(user_id=user.id, keyword=keyword)
+                    db.add(interest)
+                    interests.append(interest)
 
-            # Agregar las nuevas categorías
-            interests = []
-            for keyword in new_keywords:
-                interest = InterestsModel(user_id=user.id, keyword=keyword)
-                db.add(interest)
-                interests.append(interest)
+                await db.commit()
 
-            # Commit de los intereses
-            db.commit()
+                added_categories = [{"id": interest.id, "keyword": interest.keyword} for interest in interests]
 
-            # Construir la lista de categorías agregadas
-            added_categories = [{"id": interest.id, "keyword": interest.keyword} for interest in interests]
+                logger.info(f"Processed interests for user: {user.email}")
+                return {
+                    "message": "Categories added successfully",
+                    "categories": added_categories,
+                    "skipped_categories": skipped_keywords
+                }
 
-            logger.info(f"Intereses procesados para el usuario: {user.email}")
-            return {
-                "message": "Categories added successfully",
-                "categories": added_categories,
-                "skipped_categories": skipped_keywords  # Duplicados ignorados
-            }
+            except Exception as e:
+                await db.rollback()
+                logger.error(f"Error processing categories: {e}")
+                raise
 
-        except Exception as e:
-            # Si ocurre un error, realiza un rollback
-            logger.error(f"Error al procesar categorías: {e}")
-            db.rollback()
-            raise e
+    async def get_user_interests(self, token: str) -> CategoriesResponseModel:
+        async for db in get_db():
+            try:
+                user = decode_and_sync_user(token, db)
 
-    async def get_user_interests(self, token: str, db: Session) -> CategoriesResponseModel:
-        """
-        Recupera los intereses del usuario autenticado basado en el token proporcionado.
-        """
-        try:
-            # Valida y sincroniza al usuario con la base de datos
-            user = decode_and_sync_user(token, db)
+                stmt = select(InterestsModel).where(InterestsModel.user_id == user.id)
+                result = await db.execute(stmt)
+                interests = result.scalars().all()
 
-            # Recupera las categorías del usuario
-            interests = db.query(InterestsModel).filter_by(user_id=user.id).all()
+                categories = [{"id": interest.id, "keyword": interest.keyword} for interest in interests]
 
-            # Construye la respuesta usando el modelo Pydantic
-            categories = [{"id": interest.id, "keyword": interest.keyword} for interest in interests]
-            response = CategoriesResponseModel(
-                user_id=user.id,
-                email=user.email,
-                categories=categories
-            )
+                return CategoriesResponseModel(
+                    user_id=user.id,
+                    email=user.email,
+                    categories=categories
+                )
 
-            return response
+            except Exception as e:
+                logger.error(f"Error al obtener intereses: {e}")
+                raise
 
-        except Exception as e:
-            logger.error(f"Error al obtener intereses: {e}")
-            raise e
+    async def delete_categories(self, token: str, category_ids: list):
+        async for db in get_db():
+            try:
+                user = decode_and_sync_user(token, db)
+                deleted_categories = []
 
-    async def delete_categories(self, token: str, category_ids: list, db: Session):
-        """
-        Elimina una o varias categorías asociadas a un usuario autenticado.
-        """
-        try:
-            # Valida y sincroniza al usuario con la base de datos
-            user = decode_and_sync_user(token, db)
+                for category_id in category_ids:
+                    stmt = select(InterestsModel).where(
+                        InterestsModel.id == category_id,
+                        InterestsModel.user_id == user.id
+                    )
+                    result = await db.execute(stmt)
+                    category = result.scalars().first()
 
-            # Verifica y elimina las categorías especificadas
-            deleted_categories = []
-            for category_id in category_ids:
-                category = db.query(InterestsModel).filter_by(id=category_id, user_id=user.id).first()
-                if category:
-                    deleted_categories.append({"id": category.id, "keyword": category.keyword})
-                    db.delete(category)
-                else:
-                    logger.warning(f"Categoría con ID {category_id} no encontrada para el usuario {user.email}")
+                    if category:
+                        deleted_categories.append({"id": category.id, "keyword": category.keyword})
+                        await db.delete(category)
+                    else:
+                        logger.warning(f"Categoría con ID {category_id} no encontrada para {user.email}")
 
-            # Commit de los cambios
-            db.commit()
+                await db.commit()
 
-            # Retorna las categorías eliminadas
-            return deleted_categories
+                return deleted_categories
 
-        except Exception as e:
-            # Si ocurre un error, realiza un rollback
-            logger.error(f"Error al eliminar categorías: {e}")
-            db.rollback()
-            raise e
+            except Exception as e:
+                await db.rollback()
+                logger.error(f"Error al eliminar categorías: {e}")
+                raise
