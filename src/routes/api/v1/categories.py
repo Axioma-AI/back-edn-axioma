@@ -6,7 +6,6 @@ from src.schema.responses.response_categories_models import AddCategoriesRespons
 from src.schema.examples.response_categories_examples import categories_responses_post, categories_responses_get, categories_responses_delete
 from src.services.categories_service import CategoriesService
 from src.utils.logger import setup_logger
-from src.config.db_config import get_db
 
 logger = setup_logger(__name__, level=logging.INFO)
 
@@ -22,27 +21,21 @@ categories_service = CategoriesService()
 async def add_categories(
     token: str = Query(..., description="User authentication token"),
     keywords: List[str] = Query(..., description="Keywords to monitor"),
-    db: Session = Depends(get_db),
 ):
-    """
-    Endpoint to add keywords (categories) for the user.
-    """
     try:
         logger.info(f"Adding categories for token: {token}, keywords: {keywords}")
         
-        # Llamamos al servicio para procesar las categorías
-        result = await categories_service.process_categories(token, keywords, db)
+        # Llamada directa, sin pasar `db`
+        result = await categories_service.process_categories(token, keywords)
         
         logger.info(f"Categories added successfully for token: {token}")
-        
-        # Retornamos el mensaje, las categorías agregadas y las categorías ignoradas
         return {
             "message": result["message"],
             "categories": result["categories"],
             "skipped_categories": result.get("skipped_categories", [])
         }
+
     except HTTPException as http_exc:
-        logger.error(f"HTTP Exception: {http_exc.detail}")
         raise http_exc
     except Exception as e:
         logger.error(f"Unexpected error while adding categories: {e}")
@@ -58,19 +51,13 @@ async def add_categories(
     responses=categories_responses_get,
 )
 async def get_categories(
-    token: str = Query(..., description="User authentication token"),
-    db: Session = Depends(get_db),
+    token: str = Query(...),
 ):
-    """
-    Endpoint to retrieve the user's keywords (categories).
-    """
     try:
         logger.info(f"Fetching categories for token: {token}")
-        user_interests = await categories_service.get_user_interests(token, db)
-        logger.info(f"Categories fetched successfully for token: {token}")
+        user_interests = await categories_service.get_user_interests(token)
         return user_interests
     except HTTPException as http_exc:
-        logger.error(f"HTTP Exception: {http_exc.detail}")
         raise http_exc
     except Exception as e:
         logger.error(f"Unexpected error while fetching categories: {e}")
@@ -86,23 +73,18 @@ async def get_categories(
     responses=categories_responses_delete,
 )
 async def delete_categories(
-    token: str = Query(..., description="User authentication token"),
-    category_ids: List[int] = Query(..., description="List of category IDs to delete"),
-    db: Session = Depends(get_db),
+    token: str = Query(...),
+    category_ids: List[int] = Query(...),
 ):
-    """
-    Endpoint to delete one or more categories for the user.
-    """
     try:
         logger.info(f"Deleting categories {category_ids} for token: {token}")
-        deleted_categories = await categories_service.delete_categories(token, category_ids, db)
-        logger.info(f"Categories deleted successfully for token: {token}")
+        deleted_categories = await categories_service.delete_categories(token, category_ids)
         return {
             "message": "Categories deleted successfully",
             "deleted_categories": deleted_categories,
         }
+
     except HTTPException as http_exc:
-        logger.error(f"HTTP Exception: {http_exc.detail}")
         raise http_exc
     except Exception as e:
         logger.error(f"Unexpected error while deleting categories: {e}")

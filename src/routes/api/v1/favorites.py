@@ -25,18 +25,16 @@ favorites_service = FavoritesService()
 async def add_favorite(
     token: str = Query(..., description="User authentication token"),
     news_id: int = Query(..., description="ID of the news to add to favorites"),
-    db: Session = Depends(get_db),
 ):
     try:
         logger.info(f"Adding news_id {news_id} to favorites for token: {token}")
-        result = await favorites_service.add_favorite(token, news_id, db)
-        logger.info(f"News {news_id} successfully added to favorites")
+        result = await favorites_service.add_favorite(token, news_id)
         return {
-            "message": "Favorite added successfully",
+            "message": result["message"],
             "news_id": news_id,
         }
+
     except HTTPException as http_exc:
-        logger.error(f"HTTP Exception: {http_exc.detail}")
         raise http_exc
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
@@ -53,15 +51,13 @@ async def add_favorite(
 )
 async def get_favorites(
     token: str = Query(..., description="User authentication token"),
-    db: Session = Depends(get_db),
 ):
     try:
         logger.info(f"Fetching favorites for token: {token}")
-        result = await favorites_service.get_favorites(token, db)
-        logger.info(f"Successfully fetched favorites for token: {token}")
+        result = await favorites_service.get_favorites(token)
         return result
+
     except HTTPException as http_exc:
-        logger.error(f"HTTP Exception: {http_exc.detail}")
         raise http_exc
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
@@ -79,18 +75,16 @@ async def get_favorites(
 async def delete_favorite(
     token: str = Query(..., description="User authentication token"),
     news_id: int = Query(..., description="ID of the news to remove from favorites"),
-    db: Session = Depends(get_db),
 ):
     try:
         logger.info(f"Removing news_id {news_id} from favorites for token: {token}")
-        result = await favorites_service.delete_favorite(token, news_id, db)
-        logger.info(f"News {news_id} successfully removed from favorites")
+        result = await favorites_service.delete_favorite(token, news_id)
         return {
-            "message": "Favorite deleted successfully",
+            "message": result["message"],
             "news_id": news_id,
         }
+
     except HTTPException as http_exc:
-        logger.error(f"HTTP Exception: {http_exc.detail}")
         raise http_exc
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
